@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MHR Chemistry Academy | HSC Formula Bank</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- MathJax for Formula Rendering -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [
+                    ['$', '$'],
+                    ['\\(', '\\)']
+                ]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Hind+Siliguri:wght@300;500;700&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        mhr: {
+                            dark: '#0B1120',
+                            card: 'rgba(15, 23, 42, 0.75)',
+                            cyan: '#06b6d4',
+                            accent: '#8b5cf6',
+                        }
+                    },
+                    fontFamily: {
+                        brand: ['Orbitron', 'sans-serif'],
+                        body: ['Rajdhani', 'sans-serif'],
+                        bangla: ['Hind Siliguri', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0B1120;
+            color: #e2e8f0;
+            font-family: 'Rajdhani', sans-serif;
+            overflow-x: hidden;
+        }
+        /* 3D Canvas Background */
+        
+        #canvas-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: -1;
+            opacity: 0.5;
+            /* Subtle background */
+            pointer-events: none;
+            /* Allow clicking through */
+        }
+        /* Glassmorphism */
+        
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        
+        .formula-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .formula-card:hover {
+            transform: translateY(-4px);
+            border-color: #06b6d4;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+            background: rgba(30, 41, 59, 0.9);
+        }
+        /* Custom Scrollbar */
+        
+         ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+         ::-webkit-scrollbar-track {
+            background: #0B1120;
+        }
+        
+         ::-webkit-scrollbar-thumb {
+            background: #06b6d4;
+            border-radius: 10px;
+        }
+        /* MathJax Override for dark mode visibility */
+        
+        .mjx-chtml {
+            font-size: 115% !important;
+            color: #f1f5f9 !important;
+        }
+        
+        .nav-item.active {
+            background: linear-gradient(90deg, rgba(6, 182, 212, 0.2) 0%, transparent 100%);
+            border-left: 3px solid #06b6d4;
+            color: #06b6d4;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <!-- 3D Background -->
+    <canvas id="canvas-bg"></canvas>
+
+    <!-- Header -->
+    <header class="h-16 glass-panel fixed top-0 w-full z-50 flex items-center justify-between px-4 lg:px-8 border-b border-cyan-500/30">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white font-bold text-xl font-brand shadow-[0_0_10px_rgba(6,182,212,0.5)]">
+                M
+            </div>
+            <div>
+                <h1 class="text-xl font-brand tracking-wider text-white hidden sm:block">MHR <span class="text-cyan-400">Chemistry</span></h1>
+                <h1 class="text-xl font-brand tracking-wider text-white sm:hidden">MHR</h1>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="relative w-full max-w-md mx-4">
+            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <i class="fas fa-search text-cyan-500"></i>
+            </div>
+            <input type="text" id="searchInput" class="block w-full p-2 pl-10 text-sm text-gray-100 border border-gray-600 rounded-lg bg-slate-800/50 focus:ring-cyan-500 focus:border-cyan-500 placeholder-gray-400" placeholder="Search formulas (e.g., pH, Gas, RMS)...">
+        </div>
+
+        <!-- Mobile Menu Button -->
+        <button id="mobileMenuBtn" class="lg:hidden text-cyan-400 text-2xl focus:outline-none">
+            <i class="fas fa-bars"></i>
+        </button>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="flex pt-16 h-full relative z-10">
+
+        <!-- Sidebar Navigation (Desktop) -->
+        <aside class="w-64 hidden lg:block h-full glass-panel border-r border-cyan-500/20 overflow-y-auto pb-20">
+            <div class="p-4">
+                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Paper 1 (1st Paper)</h3>
+                <nav class="space-y-1">
+                    <a href="#ch2-qualitative" class="nav-item block px-4 py-3 rounded-r-lg hover:bg-slate-800/50 text-gray-300 hover:text-cyan-400 transition-colors">
+                        <i class="fas fa-flask mr-2 w-5"></i> Qualitative Chem
+                    </a>
+                    <a href="#ch3-periodic" class="nav-item block px-4 py-3 rounded-r-lg hover:bg-slate-800/50 text-gray-300 hover:text-cyan-400 transition-colors">
+                        <i class="fas fa-table mr-2 w-5"></i> Periodic Properties
+                    </a>
+                    <a href="#ch4-changes" class="nav-item block px-4 py-3 rounded-r-lg hover:bg-slate-800/50 text-gray-300 hover:text-cyan-400 transition-colors">
+                        <i class="fas fa-random mr-2 w-5"></i> Chemical Changes
+                    </a>
+                </nav>
+
+                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mt-8 mb-4">Paper 2 (2nd Paper)</h3>
+                <nav class="space-y-1">
+                    <a href="#ch1-environ" class="nav-item block px-4 py-3 rounded-r-lg hover:bg-slate-800/50 text-gray-300 hover:text-cyan-400 transition-colors">
+                        <i class="fas fa-cloud mr-2 w-5"></i> Environmental
+                    </a>
+                    <a href="#ch2-organic" class="nav-item block px-4 py-3 rounded-r-lg hover:bg-slate-800/50 text-gray-300 hover:text-cyan-400 transition-colors">
+                        <i class="fas fa-dna mr-2 w-5"></i> Organic Chem
+                    </a>
+                    <a href="#ch3-quant" class="nav-item block px-4 py-3 rounded-r-lg hover:bg-slate-800/50 text-gray-300 hover:text-cyan-400 transition-colors">
+                        <i class="fas fa-balance-scale mr-2 w-5"></i> Quantitative
+                    </a>
+                    <a href="#ch4-electro" class="nav-item block px-4 py-3 rounded-r-lg hover:bg-slate-800/50 text-gray-300 hover:text-cyan-400 transition-colors">
+                        <i class="fas fa-bolt mr-2 w-5"></i> Electrochemistry
+                    </a>
+                </nav>
+            </div>
+
+            <div class="mt-8 px-6">
+                <div class="p-4 rounded-xl bg-gradient-to-br from-purple-900/50 to-blue-900/50 border border-purple-500/30 text-center">
+                    <p class="text-sm font-bangla text-gray-300 mb-2">HSC 25/26 ব্যাচ?</p>
+                    <button class="w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-sm transition-colors">Join Course</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Mobile Drawer (Hidden by default) -->
+        <div id="mobileDrawer" class="fixed inset-0 z-40 bg-slate-900/95 transform -translate-x-full transition-transform duration-300 lg:hidden flex flex-col pt-20 px-6 overflow-y-auto">
+            <!-- Same content as sidebar, injected via JS or duplicated -->
+            <div class="space-y-6">
+                <div>
+                    <h3 class="text-cyan-400 font-bold mb-3 border-b border-gray-700 pb-2">Paper 1</h3>
+                    <a href="#ch2-qualitative" class="drawer-link block py-2 text-lg">Qualitative Chemistry</a>
+                    <a href="#ch3-periodic" class="drawer-link block py-2 text-lg">Periodic Properties</a>
+                    <a href="#ch4-changes" class="drawer-link block py-2 text-lg">Chemical Changes</a>
+                </div>
+                <div>
+                    <h3 class="text-cyan-400 font-bold mb-3 border-b border-gray-700 pb-2">Paper 2</h3>
+                    <a href="#ch1-environ" class="drawer-link block py-2 text-lg">Environmental Chemistry</a>
+                    <a href="#ch2-organic" class="drawer-link block py-2 text-lg">Organic Chemistry</a>
+                    <a href="#ch3-quant" class="drawer-link block py-2 text-lg">Quantitative Chemistry</a>
+                    <a href="#ch4-electro" class="drawer-link block py-2 text-lg">Electrochemistry</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 h-full overflow-y-auto p-4 lg:p-8 pb-32 scroll-smooth" id="mainContent">
+
+            <!-- Welcome Banner -->
+            <div class="mb-10 p-6 rounded-2xl bg-gradient-to-r from-slate-800 to-slate-900 border border-slate-700 shadow-lg relative overflow-hidden">
+                <div class="relative z-10">
+                    <h2 class="text-3xl font-brand text-white mb-2">Welcome to <span class="text-cyan-400">MHR Formula Bank</span></h2>
+                    <p class="text-gray-400 font-bangla text-lg">HSC Chemistry এর সকল গাণিতিক সমস্যা সমাধানের জন্য প্রয়োজনীয় সূত্র একনজরে।</p>
+                </div>
+                <!-- Decor element -->
+                <div class="absolute right-0 top-0 h-full w-32 bg-gradient-to-l from-cyan-500/10 to-transparent"></div>
+            </div>
+
+            <!-- PAPER 1 SECTION -->
+
+            <!-- Chapter 2: Qualitative -->
+            <section id="ch2-qualitative" class="mb-16 chapter-section">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="p-2 bg-cyan-900/50 rounded-lg text-cyan-400"><i class="fas fa-flask"></i></div>
+                    <h2 class="text-2xl font-bold font-brand">Qualitative Chemistry</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+                    <!-- Rydberg -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-cyan-400 font-bold mb-2 uppercase">Atomic Spectrum</div>
+                        <h3 class="text-lg font-bold mb-4">Rydberg Equation</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ \frac{1}{\lambda} = R_H \left( \frac{1}{n_1^2} - \frac{1}{n_2^2} \right) Z^2 $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            $R_H = 1.09678 \times 10^7 m^{-1}$<br> লাইম্যান সিরিজের জন্য $n_1=1$, বামারের জন্য $n_1=2$.
+                        </p>
+                    </div>
+
+                    <!-- Ksp -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-cyan-400 font-bold mb-2 uppercase">Solubility</div>
+                        <h3 class="text-lg font-bold mb-4">Solubility Product ($K_{sp}$)</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ K_{sp} = [A^{y+}]^x [B^{x-}]^y $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            For salt $A_xB_y \rightleftharpoons xA^{y+} + yB^{x-}$.<br> Condition for precipitation: $K_{ip} > K_{sp}$.
+                        </p>
+                    </div>
+
+                    <!-- Solubility -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-cyan-400 font-bold mb-2 uppercase">Solubility</div>
+                        <h3 class="text-lg font-bold mb-4">Solubility Calculation</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ S = \frac{100m}{M - m} $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            $m$ = Solute mass, $M$ = Solution mass.<br> দ্রাব্যতা সাধারণত 100g দ্রাবকে হিসাব করা হয়।
+                        </p>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- Chapter 4: Chemical Changes -->
+            <section id="ch4-changes" class="mb-16 chapter-section">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="p-2 bg-purple-900/50 rounded-lg text-purple-400"><i class="fas fa-random"></i></div>
+                    <h2 class="text-2xl font-bold font-brand">Chemical Changes</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+                    <!-- pH -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-purple-400 font-bold mb-2 uppercase">Acid Base</div>
+                        <h3 class="text-lg font-bold mb-4">pH Calculation</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ pH = -\log[H^+] $$ $$ pH + pOH = 14 $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            At 25°C, $K_w = 10^{-14}$.
+                        </p>
+                    </div>
+
+                    <!-- Buffer -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-purple-400 font-bold mb-2 uppercase">Buffer Solution</div>
+                        <h3 class="text-lg font-bold mb-4">Henderson-Hasselbalch</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ pH = pK_a + \log \frac{[Salt]}{[Acid]} $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            For Basic Buffer: $pOH = pK_b + \log \frac{[Salt]}{[Base]}$.
+                        </p>
+                    </div>
+
+                    <!-- Kp Kc -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-purple-400 font-bold mb-2 uppercase">Equilibrium</div>
+                        <h3 class="text-lg font-bold mb-4">Kp & Kc Relation</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ K_p = K_c(RT)^{\Delta n} $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            $\Delta n$ = (গ্যাসীয় উৎপাদের মোল) - (গ্যাসীয় বিক্রিয়কের মোল).
+                        </p>
+                    </div>
+
+                    <!-- Ostwald -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-purple-400 font-bold mb-2 uppercase">Weak Acid</div>
+                        <h3 class="text-lg font-bold mb-4">Ostwald's Dilution Law</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ \alpha = \sqrt{\frac{K_a}{C}} $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            $\alpha$ = বিয়োজন মাত্রা, $C$ = ঘনমাত্রা।
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PAPER 2 SECTION -->
+
+            <!-- Chapter 1: Environmental -->
+            <section id="ch1-environ" class="mb-16 chapter-section">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="p-2 bg-green-900/50 rounded-lg text-green-400"><i class="fas fa-cloud"></i></div>
+                    <h2 class="text-2xl font-bold font-brand">Environmental Chemistry</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+                    <!-- Ideal Gas -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-green-400 font-bold mb-2 uppercase">Gas Laws</div>
+                        <h3 class="text-lg font-bold mb-4">Ideal Gas Equation</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ PV = nRT = \frac{W}{M}RT $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            একক সতর্কতা: R = 0.0821 (L.atm), R = 8.314 (SI/Joule).
+                        </p>
+                    </div>
+
+                    <!-- RMS -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-green-400 font-bold mb-2 uppercase">Gas Kinetics</div>
+                        <h3 class="text-lg font-bold mb-4">RMS Velocity</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ C_{rms} = \sqrt{\frac{3RT}{M}} $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            এখানে M অবশ্যই Kg এককে বসাতে হবে (SI Unit).
+                        </p>
+                    </div>
+
+                    <!-- Partial Pressure -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-green-400 font-bold mb-2 uppercase">Dalton's Law</div>
+                        <h3 class="text-lg font-bold mb-4">Partial Pressure</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ P_{total} = P_1 + P_2 + ... $$ $$ P_i = X_i \times P_{total} $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            $X_i$ = মোল ভগ্নাংশ (Mole Fraction).
+                        </p>
+                    </div>
+
+                    <!-- Grahams Law -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-green-400 font-bold mb-2 uppercase">Diffusion</div>
+                        <h3 class="text-lg font-bold mb-4">Graham's Diffusion Law</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ \frac{r_1}{r_2} = \sqrt{\frac{M_2}{M_1}} = \sqrt{\frac{d_2}{d_1}} = \frac{t_2}{t_1} $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            ভারী গ্যাসের ব্যাপন হার কম।
+                        </p>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- Chapter 3: Quantitative -->
+            <section id="ch3-quant" class="mb-16 chapter-section">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="p-2 bg-yellow-900/50 rounded-lg text-yellow-400"><i class="fas fa-balance-scale"></i></div>
+                    <h2 class="text-2xl font-bold font-brand">Quantitative Chemistry</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+                    <!-- Molarity -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-yellow-400 font-bold mb-2 uppercase">Concentration</div>
+                        <h3 class="text-lg font-bold mb-4">Molarity (S)</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ S = \frac{1000 W}{M V_{(mL)}} $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            W = ভর (g), M = আণবিক ভর, V = আয়তন (mL).
+                        </p>
+                    </div>
+
+                    <!-- Titration -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-yellow-400 font-bold mb-2 uppercase">Titration</div>
+                        <h3 class="text-lg font-bold mb-4">Acid-Base Titration</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ \frac{V_a S_a}{n_a} = \frac{V_b S_b}{n_b} $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            $n_a, n_b$ হলো বিক্রিয়ার সমতা করা সহগ।
+                        </p>
+                    </div>
+
+                    <!-- PPM -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-yellow-400 font-bold mb-2 uppercase">Units</div>
+                        <h3 class="text-lg font-bold mb-4">PPM Calculation</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ ppm = S(Molarity) \times M \times 1000 $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            অথবা, $ppm = \frac{Mass (mg)}{Volume (L)}$
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Chapter 4: Electrochemistry -->
+            <section id="ch4-electro" class="mb-16 chapter-section">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="p-2 bg-red-900/50 rounded-lg text-red-400"><i class="fas fa-bolt"></i></div>
+                    <h2 class="text-2xl font-bold font-brand">Electrochemistry</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+                    <!-- Faraday 1 -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-red-400 font-bold mb-2 uppercase">Electrolysis</div>
+                        <h3 class="text-lg font-bold mb-4">Faraday's 1st Law</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ W = ZIt = \frac{MIt}{nF} $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            F = 96500 C. Z = তড়িৎ রাসায়নিক তুল্যাঙ্ক।
+                        </p>
+                    </div>
+
+                    <!-- Nernst -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-red-400 font-bold mb-2 uppercase">Cell Potential</div>
+                        <h3 class="text-lg font-bold mb-4">Nernst Equation (25°C)</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ E_{cell} = E^0_{cell} - \frac{0.0591}{n} \log Q $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            $Q = \frac{[Product]}{[Reactant]}$ (আয়নগুলোর ঘনমাত্রা)
+                        </p>
+                    </div>
+
+                    <!-- E cell -->
+                    <div class="glass-panel formula-card p-6 rounded-xl border border-slate-700">
+                        <div class="text-sm text-red-400 font-bold mb-2 uppercase">Standard Cell</div>
+                        <h3 class="text-lg font-bold mb-4">Standard EMF</h3>
+                        <div class="bg-slate-900/50 p-3 rounded-lg text-center mb-3">
+                            $$ E^0_{cell} = E^0_{ox}(anode) + E^0_{red}(cathode) $$
+                        </div>
+                        <p class="text-xs text-gray-400 font-bangla">
+                            ধনাত্মক হলে বিক্রিয়া স্বতঃস্ফূর্ত।
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- JavaScript for 3D & Logic -->
+    <script type="module">
+        import * as THREE from 'https://cdn.skypack.dev/three@0.136.0'; /* --- 3D Background Logic --- */ const canvas = document.getElementById('canvas-bg'); const scene = new THREE.Scene(); // Darker fog for more depth and better text contrast scene.fog = new
+        THREE.FogExp2(0x0B1120, 0.035); const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true }); renderer.setSize(window.innerWidth,
+        window.innerHeight); renderer.setPixelRatio(window.devicePixelRatio > 2 ? 2 : window.devicePixelRatio); // Optimize for mobile camera.position.z = 8; // Lights const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); scene.add(ambientLight);
+        const pLight = new THREE.PointLight(0x06b6d4, 1.5, 20); pLight.position.set(5, 5, 5); scene.add(pLight); // Group for rotation const group = new THREE.Group(); scene.add(group); // 1. Create Benzene Ring (C6H6) representation const atomGeo = new
+        THREE.IcosahedronGeometry(0.5, 1); // Low poly for performance const cMat = new THREE.MeshPhongMaterial({ color: 0x334155, shininess: 100 }); const hMat = new THREE.MeshPhongMaterial({ color: 0x94a3b8, shininess: 50 }); const bondMat = new THREE.MeshBasicMaterial({
+        color: 0x475569 }); function createBond(p1, p2) { const path = new THREE.Vector3().subVectors(p2, p1); const bond = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, path.length(), 6), bondMat); bond.position.copy(p2).add(p1).multiplyScalar(0.5);
+        bond.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), path.clone().normalize()); group.add(bond); } // Hexagon coordinates for(let i=0; i
+        <6; i++) { const angle=( i / 6) * Math.PI * 2; const x=M ath.cos(angle) * 3; const y=M ath.sin(angle)
+            * 3; // Carbon const cAtom=n ew THREE.Mesh(atomGeo, cMat); cAtom.position.set(x, y, 0); group.add(cAtom); // Hydrogen (further out) const hx=M ath.cos(angle) * 4.5; const hy=M ath.sin(angle) * 4.5; const hAtom=n ew THREE.Mesh(new THREE.IcosahedronGeometry(0.3,
+            0), hMat); hAtom.position.set(hx, hy, 0); group.add(hAtom); // C-H Bond createBond(new THREE.Vector3(x,y,0), new THREE.Vector3(hx,hy,0)); // C-C Bonds const nextAngle=( (i+1) / 6) * Math.PI * 2; const nextX=M ath.cos(nextAngle) * 3; const nextY=M
+            ath.sin(nextAngle) * 3; createBond(new THREE.Vector3(x,y,0), new THREE.Vector3(nextX,nextY,0)); } // 2. Floating Particles const particlesGeo=n ew THREE.BufferGeometry(); const pCount=2 00; const pPos=n ew Float32Array(pCount * 3); for(let i=0;
+            i<pCount*3; i++) { pPos[i]=( Math.random() - 0.5) * 30; } particlesGeo.setAttribute( 'position', new THREE.BufferAttribute(pPos, 3)); const pMat=n ew THREE.PointsMaterial({ size: 0.1, color: 0x06b6d4, transparent: true, opacity: 0.6 }); const
+            particles=n ew THREE.Points(particlesGeo, pMat); scene.add(particles); // Animation let mouseX=0 ; let mouseY=0 ; document.addEventListener( 'mousemove', (e)=> { mouseX = (e.clientX / window.innerWidth) * 2 - 1; mouseY = -(e.clientY / window.innerHeight) * 2 + 1; }); function animate() { requestAnimationFrame(animate); group.rotation.y += 0.002; group.rotation.x += 0.001; // Gentle interaction group.rotation.x
+            += mouseY * 0.01; group.rotation.y += mouseX * 0.01; particles.rotation.y = -Date.now() * 0.0001; renderer.render(scene, camera); } animate(); // Resize handler window.addEventListener('resize', () => { camera.aspect = window.innerWidth /
+            window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+    </script>
+
+    <script>
+        // UI Logic
+
+        // 1. Search Functionality
+        const searchInput = document.getElementById('searchInput');
+        const cards = document.querySelectorAll('.formula-card');
+
+        searchInput.addEventListener('keyup', (e) => {
+            const term = e.target.value.toLowerCase();
+
+            cards.forEach(card => {
+                const title = card.querySelector('h3').innerText.toLowerCase();
+                const category = card.querySelector('.uppercase').innerText.toLowerCase();
+                const content = card.innerText.toLowerCase();
+
+                if (title.includes(term) || category.includes(term) || content.includes(term)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+
+        // 2. Mobile Drawer
+        const menuBtn = document.getElementById('mobileMenuBtn');
+        const drawer = document.getElementById('mobileDrawer');
+        const drawerLinks = document.querySelectorAll('.drawer-link');
+        let isDrawerOpen = false;
+
+        menuBtn.addEventListener('click', () => {
+            isDrawerOpen = !isDrawerOpen;
+            if (isDrawerOpen) {
+                drawer.classList.remove('-translate-x-full');
+            } else {
+                drawer.classList.add('-translate-x-full');
+            }
+        });
+
+        // Close drawer on link click
+        drawerLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                isDrawerOpen = false;
+                drawer.classList.add('-translate-x-full');
+            });
+        });
+
+        // Close drawer on clicking outside (optional, simplified here)
+        drawer.addEventListener('click', (e) => {
+            if (e.target === drawer) {
+                isDrawerOpen = false;
+                drawer.classList.add('-translate-x-full');
+            }
+        });
+    </script>
+</body>
+
+</html>
