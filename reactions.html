@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MHR Chemistry Academy | Organic Masterclass</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;500;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        mhr: {
+                            dark: '#0f172a',
+                            primary: '#06b6d4', // Cyan
+                            secondary: '#8b5cf6', // Violet
+                            glass: 'rgba(15, 23, 42, 0.75)'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Exo 2"', 'sans-serif'],
+                        mono: ['"Fira Code"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            margin: 0;
+            overflow-x: hidden;
+            background-color: #0f172a;
+            color: white;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.8;
+        }
+        
+        .glass-panel {
+            background: rgba(17, 25, 40, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.125);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        
+        .reaction-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .reaction-card:hover {
+            transform: translateX(5px);
+            background: rgba(6, 182, 212, 0.15);
+            border-left: 4px solid #06b6d4;
+        }
+        
+        .reaction-card:active {
+            transform: scale(0.98);
+        }
+        /* Custom Scrollbar */
+        
+         ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+         ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        
+         ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        
+         ::-webkit-scrollbar-thumb:hover {
+            background: #06b6d4;
+        }
+        
+        .title-gradient {
+            background: linear-gradient(to right, #06b6d4, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .copied-toast {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body class="antialiased min-h-screen flex flex-col">
+
+    <!-- 3D Background -->
+    <div id="canvas-container"></div>
+
+    <!-- Header -->
+    <header class="fixed w-full z-50 glass-panel border-b-0 border-b-white/10">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-cyan-400 to-violet-500 p-2 rounded-lg">
+                    <i data-lucide="flask-conical" class="text-white w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold tracking-wider">MHR <span class="title-gradient">Chemistry</span></h1>
+                    <p class="text-xs text-gray-400">HSC Organic Masterclass</p>
+                </div>
+            </div>
+            <a href="https://www.youtube.com/@MHRChemistry" target="_blank" class="hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-red-600 hover:bg-red-700 transition text-sm font-semibold shadow-lg shadow-red-500/30">
+                <i data-lucide="youtube" class="w-4 h-4"></i> Subscribe
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow pt-24 pb-12 px-4 relative z-10">
+        <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+            <!-- Left Sidebar (Navigation) -->
+            <div class="lg:col-span-3 lg:sticky lg:top-28 h-fit space-y-4">
+                <div class="glass-panel rounded-xl p-5">
+                    <h3 class="text-cyan-400 font-bold mb-4 flex items-center gap-2">
+                        <i data-lucide="list" class="w-4 h-4"></i> Topics
+                    </h3>
+                    <nav class="space-y-1" id="topic-nav">
+                        <!-- Nav items injected by JS -->
+                    </nav>
+                </div>
+
+                <div class="glass-panel rounded-xl p-5 text-center">
+                    <div class="text-4xl font-bold text-white mb-1" id="reaction-count">0</div>
+                    <div class="text-sm text-gray-400">Total Reactions</div>
+                </div>
+            </div>
+
+            <!-- Right Content (Reactions) -->
+            <div class="lg:col-span-9 space-y-6" id="content-area">
+                <!-- Reaction Groups injected by JS -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="glass-panel mt-auto py-8 text-center relative z-10">
+        <p class="text-gray-400">© 2025 MHR Chemistry Academy. Built for HSC Students.</p>
+        <p class="text-xs text-gray-600 mt-2">Chemistry made Simple & Visual.</p>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-full shadow-2xl shadow-emerald-500/40 hidden flex items-center gap-2 z-50">
+        <i data-lucide="check-circle" class="w-5 h-5"></i>
+        <span class="font-semibold">Reaction Copied!</span>
+    </div>
+
+    <script>
+        // --- 1. Data Structure (Chemistry Content) ---
+        // Using Unicode subscripts (₀₁₂₃₄₅₆₇₈₉) for direct copy-paste compatibility
+        const chemistryData = [{
+            id: "alkane",
+            title: "Alkane",
+            icon: "hexagon",
+            desc: "Saturated hydrocarbons (Paraffins). Substitution reactions.",
+            reactions: [{
+                name: "General Formula",
+                eq: "CₙH₂ₙ₊₂"
+            }, {
+                name: "Halogenation (Chlorination)",
+                eq: "CH₄ + Cl₂ →(uv)→ CH₃Cl + HCl"
+            }, {
+                name: "Wurtz Reaction",
+                eq: "2R-X + 2Na →(dry ether)→ R-R + 2NaX"
+            }, {
+                name: "Decarboxylation",
+                eq: "R-COONa + NaOH(CaO) →(Δ)→ R-H + Na₂CO₃"
+            }, {
+                name: "Combustion",
+                eq: "CH₄ + 2O₂ → CO₂ + 2H₂O + Heat"
+            }]
+        }, {
+            id: "alkene",
+            title: "Alkene",
+            icon: "wind",
+            desc: "Unsaturated double bonds. Addition reactions.",
+            reactions: [{
+                name: "General Formula",
+                eq: "CₙH₂ₙ"
+            }, {
+                name: "Hydrogenation (Sabatier-Senderens)",
+                eq: "R-CH=CH₂ + H₂ →(Ni/180°C)→ R-CH₂-CH₃"
+            }, {
+                name: "Bromination (Test for Unsaturation)",
+                eq: "CH₂=CH₂ + Br₂ (Red/Brown) →(CCl₄)→ Br-CH₂-CH₂-Br (Colourless)"
+            }, {
+                name: "Hydration",
+                eq: "CH₂=CH₂ + H₂O →(H₃PO₄/300°C)→ CH₃-CH₂-OH"
+            }, {
+                name: "Ozonolysis",
+                eq: "R-CH=CH-R' + O₂ → Ozonide →(Zn/H₂O)→ R-CHO + R'-CHO + ZnO"
+            }, {
+                name: "Markownikoff's Rule",
+                eq: "CH₃-CH=CH₂ + HBr → CH₃-CH(Br)-CH₃ (Major)"
+            }]
+        }, {
+            id: "alkyne",
+            title: "Alkyne",
+            icon: "zap",
+            desc: "Triple bonds. Acidic nature of terminal alkynes.",
+            reactions: [{
+                name: "General Formula",
+                eq: "CₙH₂ₙ₋₂"
+            }, {
+                name: "Hydration (Kucheroff's Rxn)",
+                eq: "CH≡CH + H₂O →(20% H₂SO₄/1% HgSO₄)→ CH₃CHO"
+            }, {
+                name: "Formation of Benzene",
+                eq: "3CH≡CH →(Red hot Fe tube/450°C)→ C₆H₆"
+            }, {
+                name: "Test: Ammoniacal AgNO₃",
+                eq: "R-C≡CH + AgNO₃ + NH₄OH → R-C≡C-Ag (White ppt) + ..."
+            }, {
+                name: "Test: Ammoniacal Cu₂Cl₂",
+                eq: "R-C≡CH + Cu₂Cl₂ + NH₄OH → R-C≡C-Cu (Red ppt) + ..."
+            }]
+        }, {
+            id: "alcohol",
+            title: "Alcohol",
+            icon: "droplets",
+            desc: "Hydroxyl group (-OH). Oxidation and Dehydration.",
+            reactions: [{
+                name: "Lucas Test (Distinguish 1°, 2°, 3°)",
+                eq: "R-OH + HCl →(ZnCl₂)→ R-Cl (Turbidity)"
+            }, {
+                name: "Dehydration (to Alkene)",
+                eq: "CH₃-CH₂-OH →(Conc. H₂SO₄/170°C)→ CH₂=CH₂ + H₂O"
+            }, {
+                name: "Dehydration (to Ether)",
+                eq: "2CH₃-CH₂-OH →(Conc. H₂SO₄/140°C)→ C₂H₅-O-C₂H₅ + H₂O"
+            }, {
+                name: "Oxidation (1° Alcohol)",
+                eq: "R-CH₂OH + [O] →(K₂Cr₂O₇/H⁺)→ R-CHO → R-COOH"
+            }, {
+                name: "Esterification",
+                eq: "R-OH + R'-COOH ⇌(H⁺)⇌ R'-COOR (Fruity Smell) + H₂O"
+            }]
+        }, {
+            id: "aldehyde_ketone",
+            title: "Aldehyde & Ketone",
+            icon: "activity",
+            desc: "Carbonyl compounds. Nucleophilic addition.",
+            reactions: [{
+                name: "Tollen's Reagent (Silver Mirror)",
+                eq: "R-CHO + [Ag(NH₃)₂]⁺ → R-COO⁻ + Ag↓ (Mirror)"
+            }, {
+                name: "Fehling's Solution",
+                eq: "R-CHO + 2Cu²⁺ + 5OH⁻ → R-COO⁻ + Cu₂O↓ (Red ppt)"
+            }, {
+                name: "Clemmensen Reduction",
+                eq: ">C=O + 4[H] →(Zn-Hg/Conc. HCl)→ >CH₂ + H₂O"
+            }, {
+                name: "Wolff-Kishner Reduction",
+                eq: ">C=O + NH₂NH₂ →(KOH/Glycol)→ >CH₂ + N₂"
+            }, {
+                name: "Aldol Condensation",
+                eq: "2CH₃CHO →(Dil. NaOH)→ CH₃-CH(OH)-CH₂-CHO"
+            }, {
+                name: "Cannizzaro Reaction",
+                eq: "2HCHO + Conc. NaOH → HCOONa + CH₃OH"
+            }]
+        }, {
+            id: "carboxylic",
+            title: "Carboxylic Acid",
+            icon: "shield",
+            desc: "Acidity and Derivatives.",
+            reactions: [{
+                name: "With Bicarbonate (Effervescence)",
+                eq: "R-COOH + NaHCO₃ → R-COONa + H₂O + CO₂↑"
+            }, {
+                name: "Hunsdiecker Reaction",
+                eq: "R-COOAg + Br₂ →(CCl₄)→ R-Br + CO₂ + AgBr"
+            }, {
+                name: "Reduction",
+                eq: "R-COOH →(LiAlH₄)→ R-CH₂OH"
+            }, {
+                name: "Hell-Volhard-Zelinsky (HVZ)",
+                eq: "R-CH₂-COOH + X₂ →(Red P)→ R-CH(X)-COOH"
+            }]
+        }, {
+            id: "benzene",
+            title: "Benzene",
+            icon: "box",
+            desc: "Aromaticity. Electrophilic Substitution.",
+            reactions: [{
+                name: "Nitration",
+                eq: "C₆H₆ + HNO₃ →(Conc. H₂SO₄/60°C)→ C₆H₅NO₂ + H₂O"
+            }, {
+                name: "Halogenation",
+                eq: "C₆H₆ + Cl₂ →(FeCl₃/Dark)→ C₆H₅Cl + HCl"
+            }, {
+                name: "Friedel-Crafts Alkylation",
+                eq: "C₆H₆ + CH₃Cl →(Anhy. AlCl₃)→ C₆H₅CH₃ (Toluene) + HCl"
+            }, {
+                name: "Friedel-Crafts Acylation",
+                eq: "C₆H₆ + CH₃COCl →(Anhy. AlCl₃)→ C₆H₅COCH₃ + HCl"
+            }, {
+                name: "Ozonolysis",
+                eq: "C₆H₆ + 3O₃ → Triozonide →(Zn/H₂O)→ 3CHO-CHO (Glyoxal)"
+            }]
+        }, {
+            id: "toluene",
+            title: "Toluene",
+            icon: "triangle",
+            desc: "Methyl benzene reactions.",
+            reactions: [{
+                name: "Nitration (TNT)",
+                eq: "C₆H₅CH₃ + 3HNO₃ →(Conc. H₂SO₄)→ 2,4,6-Trinitrotoluene (TNT)"
+            }, {
+                name: "Oxidation",
+                eq: "C₆H₅CH₃ + [O] →(KMnO₄/H⁺)→ C₆H₅COOH (Benzoic Acid)"
+            }, {
+                name: "Chlorination (Side chain)",
+                eq: "C₆H₅CH₃ + Cl₂ →(uv)→ C₆H₅CH₂Cl (Benzyl Chloride)"
+            }]
+        }, {
+            id: "phenol",
+            title: "Phenol",
+            icon: "flask-round",
+            desc: "Carbolic acid reactions.",
+            reactions: [{
+                name: "Reimer-Tiemann",
+                eq: "Phenol + CHCl₃ + 3NaOH → Salicylaldehyde"
+            }, {
+                name: "Kolbe's Reaction",
+                eq: "Phenol + NaOH + CO₂ →(125°C/Pressure)→ Salicylic Acid"
+            }, {
+                name: "With Zinc Dust",
+                eq: "C₆H₅OH + Zn →(Δ)→ C₆H₆ (Benzene) + ZnO"
+            }, {
+                name: "Bromine Water Test",
+                eq: "C₆H₅OH + 3Br₂ (aq) → 2,4,6-Tribromophenol (White ppt)"
+            }]
+        }, {
+            id: "nitrobenzene",
+            title: "Nitrobenzene",
+            icon: "atom",
+            desc: "Reduction reactions.",
+            reactions: [{
+                name: "Acidic Reduction",
+                eq: "C₆H₅NO₂ + 6[H] →(Sn/HCl)→ C₆H₅NH₂ (Aniline) + 2H₂O"
+            }, {
+                name: "Neutral Reduction",
+                eq: "C₆H₅NO₂ + 4[H] →(Zn/NH₄Cl)→ C₆H₅NHOH"
+            }, {
+                name: "Electrolytic Reduction",
+                eq: "C₆H₅NO₂ →(Weak Acid)→ Aniline | →(Strong Acid)→ p-Aminophenol"
+            }]
+        }];
+
+        // --- 2. UI Generation Logic ---
+
+        const contentArea = document.getElementById('content-area');
+        const topicNav = document.getElementById('topic-nav');
+        let totalReactions = 0;
+
+        function renderContent() {
+            chemistryData.forEach(topic => {
+                totalReactions += topic.reactions.length;
+
+                // 1. Navigation Item
+                const navItem = document.createElement('a');
+                navItem.href = `#${topic.id}`;
+                navItem.className = 'block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition flex items-center gap-2';
+                navItem.innerHTML = `<i data-lucide="${topic.icon}" class="w-4 h-4"></i> ${topic.title}`;
+                topicNav.appendChild(navItem);
+
+                // 2. Main Content Card
+                const section = document.createElement('div');
+                section.id = topic.id;
+                section.className = 'scroll-mt-28';
+
+                // Header
+                const header = document.createElement('div');
+                header.className = 'flex items-center gap-3 mb-4';
+                header.innerHTML = `
+                    <div class="p-2 bg-cyan-500/20 rounded-lg text-cyan-400">
+                        <i data-lucide="${topic.icon}" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">${topic.title}</h2>
+                        <p class="text-sm text-gray-400">${topic.desc}</p>
+                    </div>
+                `;
+                section.appendChild(header);
+
+                // Reactions Grid
+                const grid = document.createElement('div');
+                grid.className = 'grid gap-3';
+
+                topic.reactions.forEach(rxn => {
+                    const card = document.createElement('div');
+                    card.className = 'reaction-card glass-panel p-4 rounded-xl border border-white/5 relative group';
+                    card.onclick = () => copyToClipboard(rxn.eq);
+
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-cyan-400 uppercase tracking-wider">${rxn.name}</span>
+                            <button class="text-gray-500 hover:text-white transition opacity-0 group-hover:opacity-100">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <div class="font-mono text-sm md:text-base text-gray-200 break-words leading-relaxed">
+                            ${rxn.eq}
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+
+                section.appendChild(grid);
+                contentArea.appendChild(section);
+            });
+
+            // Update total count
+            document.getElementById('reaction-count').innerText = totalReactions;
+
+            // Re-init icons
+            lucide.createIcons();
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.getElementById('toast');
+                toast.classList.remove('hidden');
+                toast.classList.add('copied-toast');
+                setTimeout(() => {
+                    toast.classList.add('hidden');
+                }, 2000);
+            });
+        }
+
+        renderContent();
+
+        // --- 3. Three.js Animation (The Cool Part) ---
+
+        const initThreeJS = () => {
+            const container = document.getElementById('canvas-container');
+            const scene = new THREE.Scene();
+            // Fog for depth
+            scene.fog = new THREE.FogExp2(0x0f172a, 0.02);
+
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({
+                alpha: true,
+                antialias: true
+            });
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(0x06b6d4, 1, 100);
+            pointLight.position.set(10, 10, 10);
+            scene.add(pointLight);
+
+            const pointLight2 = new THREE.PointLight(0x8b5cf6, 1, 100);
+            pointLight2.position.set(-10, -10, -10);
+            scene.add(pointLight2);
+
+            // Create Organic Molecule Structure
+            const molecules = new THREE.Group();
+
+            // Geometry cache
+            const sphereGeo = new THREE.SphereGeometry(0.3, 32, 32);
+            const bondGeo = new THREE.CylinderGeometry(0.08, 0.08, 1, 16);
+
+            // Materials
+            const carbonMat = new THREE.MeshPhongMaterial({
+                color: 0x333333,
+                shininess: 100
+            }); // Black/Grey
+            const hydrogenMat = new THREE.MeshPhongMaterial({
+                color: 0xffffff,
+                shininess: 100
+            }); // White
+            const oxygenMat = new THREE.MeshPhongMaterial({
+                color: 0xff0000,
+                shininess: 100
+            }); // Red
+            const bondMat = new THREE.MeshPhongMaterial({
+                color: 0xcccccc
+            });
+
+            // Helper to create atom
+            function createAtom(type, x, y, z) {
+                let mat = carbonMat;
+                let scale = 1;
+                if (type === 'H') {
+                    mat = hydrogenMat;
+                    scale = 0.6;
+                }
+                if (type === 'O') {
+                    mat = oxygenMat;
+                    scale = 1.1;
+                }
+
+                const mesh = new THREE.Mesh(sphereGeo, mat);
+                mesh.position.set(x, y, z);
+                mesh.scale.set(scale, scale, scale);
+                return mesh;
+            }
+
+            // Helper to create bond
+            function createBond(p1, p2) {
+                const distance = p1.distanceTo(p2);
+                const mesh = new THREE.Mesh(bondGeo, bondMat);
+                const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+                mesh.position.copy(mid);
+                mesh.lookAt(p2);
+                mesh.scale.set(1, 1, distance); // Scale length
+                return mesh;
+            }
+
+            // Generate a random "Lattice" looking like complex organic structures
+            const atomCount = 40;
+            const positions = [];
+
+            for (let i = 0; i < atomCount; i++) {
+                const x = (Math.random() - 0.5) * 20;
+                const y = (Math.random() - 0.5) * 20;
+                const z = (Math.random() - 0.5) * 10;
+                const type = Math.random() > 0.7 ? (Math.random() > 0.5 ? 'O' : 'H') : 'C';
+
+                const atom = createAtom(type, x, y, z);
+                molecules.add(atom);
+                positions.push(new THREE.Vector3(x, y, z));
+            }
+
+            // Connect nearby atoms with bonds
+            for (let i = 0; i < positions.length; i++) {
+                for (let j = i + 1; j < positions.length; j++) {
+                    const dist = positions[i].distanceTo(positions[j]);
+                    if (dist < 4) {
+                        molecules.add(createBond(positions[i], positions[j]));
+                    }
+                }
+            }
+
+            scene.add(molecules);
+
+            // Floating Particles (Electrons?)
+            const particlesGeo = new THREE.BufferGeometry();
+            const particlesCount = 200;
+            const posArray = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 30;
+            }
+            particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const particlesMat = new THREE.PointsMaterial({
+                size: 0.05,
+                color: 0x06b6d4,
+                transparent: true,
+                opacity: 0.6
+            });
+            const particlesMesh = new THREE.Points(particlesGeo, particlesMat);
+            scene.add(particlesMesh);
+
+            camera.position.z = 15;
+
+            // Animation Loop
+            let mouseX = 0;
+            let mouseY = 0;
+
+            document.addEventListener('mousemove', (event) => {
+                mouseX = (event.clientX - window.innerWidth / 2) * 0.001;
+                mouseY = (event.clientY - window.innerHeight / 2) * 0.001;
+            });
+
+            function animate() {
+                requestAnimationFrame(animate);
+
+                // Rotate entire molecule structure
+                molecules.rotation.y += 0.002;
+                molecules.rotation.x += 0.001;
+
+                // Subtle mouse interaction
+                molecules.rotation.y += mouseX * 0.05;
+                molecules.rotation.x += mouseY * 0.05;
+
+                // Move particles
+                particlesMesh.rotation.y -= 0.0005;
+
+                renderer.render(scene, camera);
+            }
+
+            animate();
+
+            // Handle Resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        };
+
+        // Initialize 3D when DOM is ready
+        window.addEventListener('DOMContentLoaded', initThreeJS);
+    </script>
+</body>
+
+</html>

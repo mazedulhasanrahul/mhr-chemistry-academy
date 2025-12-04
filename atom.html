@@ -1,0 +1,1879 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MHR Chemistry Academy - Ultimate 3D Lab</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .canvas-bg {
+            background: radial-gradient(circle at 50% 50%, #1e293b 0%, #020617 100%);
+        }
+        /* Glassmorphism Utils */
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .glass-light {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        /* Animations */
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-enter {
+            animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        /* Scrollbar */
+        
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        
+        .glass-light.custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        .hidden-force {
+            display: none !important;
+        }
+        /* Safe Area for iPhones without home button */
+        
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="w-full h-screen relative flex flex-col md:flex-row text-white overflow-hidden canvas-bg">
+
+        <div id="canvas-container" class="absolute inset-0 z-0 touch-none"></div>
+
+        <div class="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-40 md:hidden pointer-events-none">
+            <div class="glass p-2 rounded-xl flex items-center gap-2 pointer-events-auto shadow-lg">
+                <div class="bg-blue-600 p-1.5 rounded-lg" id="mobile-icon-container"></div>
+                <span class="font-bold text-sm tracking-wide">MHR Lab</span>
+            </div>
+            <button id="mobile-menu-btn" class="glass p-3 rounded-full pointer-events-auto active:scale-95 transition-transform shadow-lg text-white"></button>
+        </div>
+
+        <div id="sidebar" class="fixed inset-y-0 left-0 z-50 w-full md:w-80 bg-[#0f172a]/95 backdrop-blur-2xl border-r border-white/10 shadow-2xl transform transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] -translate-x-full flex flex-col">
+            <div class="flex flex-col h-full pb-safe">
+                <div class="p-6 border-b border-white/10 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-blue-600 p-2 rounded-lg shadow-lg shadow-blue-500/30" id="sidebar-logo-icon"></div>
+                        <div>
+                            <h1 class="font-bold text-xl tracking-tight">MHR Academy</h1>
+                            <p class="text-xs text-blue-400 font-medium tracking-wide">3D CHEMISTRY LAB</p>
+                        </div>
+                    </div>
+                    <button id="close-menu-btn" class="md:hidden p-2 text-white/50 hover:text-white transition-colors"></button>
+                </div>
+
+                <div class="p-4 grid grid-cols-3 gap-2" id="filter-container"></div>
+
+                <div id="molecule-list" class="flex-1 overflow-y-auto custom-scroll p-4 space-y-2"></div>
+
+                <div class="p-4 text-center border-t border-white/10 bg-[#0f172a]">
+                    <p class="text-xs text-slate-500">
+                        Made for HSC Students <br />
+                        <span class="text-blue-500 font-medium">© MHR Chemistry Academy</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-end md:justify-end md:items-end p-4 md:p-8 pb-safe">
+
+            <div class="absolute top-24 right-4 md:top-8 md:right-8 pointer-events-auto flex flex-col md:flex-row gap-3">
+                <button id="btn-info" class="p-3 rounded-full glass transition-colors hover:bg-white/10 active:scale-95 shadow-lg"></button>
+                <button id="btn-rotate" class="p-3 rounded-full glass transition-colors hover:bg-white/10 active:scale-95 shadow-lg"></button>
+            </div>
+
+            <div id="info-card" class="pointer-events-auto w-full md:w-96 animate-enter transition-all"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. DATA ---
+        // Colors: C=#333, H=#eee, O=#e11d48, N=#2563eb, Cl=#10b981, F=#a3e635, S=#fbbf24, P=#d97706, B=#f472b6, Be=#94a3b8, I=#a855f7, Br=#881337, Xe=#06b6d4, Al=#cbd5e1
+
+        const MOLECULES = [
+            // --- sp HYBRIDIZATION ---
+            {
+                id: 'becl2',
+                name: 'Beryllium Chloride',
+                formula: 'BeCl₂',
+                category: 'Inorganic',
+                hybridization: 'sp',
+                angle: '180°',
+                shape: 'Linear',
+                desc: 'Electron deficient compound. Linear in gas phase.',
+                atoms: [{
+                    elem: 'Be',
+                    pos: [0, 0, 0],
+                    color: '#94a3b8',
+                    size: 0.5
+                }, {
+                    elem: 'Cl',
+                    pos: [1.4, 0, 0],
+                    color: '#10b981',
+                    size: 0.55
+                }, {
+                    elem: 'Cl',
+                    pos: [-1.4, 0, 0],
+                    color: '#10b981',
+                    size: 0.55
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2]
+                ]
+            }, {
+                id: 'co2',
+                name: 'Carbon Dioxide',
+                formula: 'CO₂',
+                category: 'Inorganic',
+                hybridization: 'sp',
+                angle: '180°',
+                shape: 'Linear',
+                desc: 'Non-polar gas. Carbon double bonded to two Oxygens.',
+                atoms: [{
+                    elem: 'C',
+                    pos: [0, 0, 0],
+                    color: '#333',
+                    size: 0.6
+                }, {
+                    elem: 'O',
+                    pos: [1.2, 0, 0],
+                    color: '#e11d48',
+                    size: 0.55
+                }, {
+                    elem: 'O',
+                    pos: [-1.2, 0, 0],
+                    color: '#e11d48',
+                    size: 0.55
+                }],
+                bonds: [
+                        [0, 1],
+                        [0, 1],
+                        [0, 2],
+                        [0, 2]
+                    ] // Double bonds simulated
+            }, {
+                id: 'hcn',
+                name: 'Hydrogen Cyanide',
+                formula: 'HCN',
+                category: 'Inorganic',
+                hybridization: 'sp',
+                angle: '180°',
+                shape: 'Linear',
+                desc: 'Highly toxic. Contains a triple bond between C and N.',
+                atoms: [{
+                    elem: 'C',
+                    pos: [0, 0, 0],
+                    color: '#333',
+                    size: 0.6
+                }, {
+                    elem: 'N',
+                    pos: [1.15, 0, 0],
+                    color: '#2563eb',
+                    size: 0.55
+                }, {
+                    elem: 'H',
+                    pos: [-1.06, 0, 0],
+                    color: '#eee',
+                    size: 0.3
+                }],
+                bonds: [
+                        [0, 1],
+                        [0, 1],
+                        [0, 1],
+                        [0, 2]
+                    ] // Triple bond C-N, Single C-H
+            }, {
+                id: 'ethyne',
+                name: 'Ethyne',
+                formula: 'C₂H₂',
+                category: 'Organic',
+                hybridization: 'sp',
+                angle: '180°',
+                shape: 'Linear',
+                desc: 'Acetylene. Used in welding torches.',
+                atoms: [{
+                    elem: 'C',
+                    pos: [-0.6, 0, 0],
+                    color: '#333',
+                    size: 0.6
+                }, {
+                    elem: 'C',
+                    pos: [0.6, 0, 0],
+                    color: '#333',
+                    size: 0.6
+                }, {
+                    elem: 'H',
+                    pos: [-1.66, 0, 0],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [1.66, 0, 0],
+                    color: '#eee',
+                    size: 0.3
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 1],
+                    [0, 1],
+                    [0, 2],
+                    [1, 3]
+                ]
+            }, {
+                id: 'azide',
+                name: 'Azide Ion',
+                formula: 'N₃⁻',
+                category: 'Inorganic',
+                hybridization: 'sp',
+                angle: '180°',
+                shape: 'Linear',
+                desc: 'Resonance hybrid structure with delocalized electrons.',
+                atoms: [{
+                    elem: 'N',
+                    pos: [0, 0, 0],
+                    color: '#2563eb',
+                    size: 0.55
+                }, {
+                    elem: 'N',
+                    pos: [1.15, 0, 0],
+                    color: '#2563eb',
+                    size: 0.55
+                }, {
+                    elem: 'N',
+                    pos: [-1.15, 0, 0],
+                    color: '#2563eb',
+                    size: 0.55
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 1],
+                    [0, 2],
+                    [0, 2]
+                ]
+            },
+
+            // --- sp2 HYBRIDIZATION ---
+            {
+                id: 'bf3',
+                name: 'Boron Trifluoride',
+                formula: 'BF₃',
+                category: 'Inorganic',
+                hybridization: 'sp²',
+                angle: '120°',
+                shape: 'Trigonal Planar',
+                desc: 'Lewis acid due to incomplete octet.',
+                atoms: [{
+                    elem: 'B',
+                    pos: [0, 0, 0],
+                    color: '#f472b6',
+                    size: 0.6
+                }, {
+                    elem: 'F',
+                    pos: [0, 1.3, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [1.12, -0.65, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [-1.12, -0.65, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3]
+                ]
+            }, {
+                id: 'so3',
+                name: 'Sulfur Trioxide',
+                formula: 'SO₃',
+                category: 'Inorganic',
+                hybridization: 'sp²',
+                angle: '120°',
+                shape: 'Trigonal Planar',
+                desc: 'Major pollutant, precursor to sulfuric acid.',
+                atoms: [{
+                    elem: 'S',
+                    pos: [0, 0, 0],
+                    color: '#fbbf24',
+                    size: 0.65
+                }, {
+                    elem: 'O',
+                    pos: [0, 1.4, 0],
+                    color: '#e11d48',
+                    size: 0.5
+                }, {
+                    elem: 'O',
+                    pos: [1.21, -0.7, 0],
+                    color: '#e11d48',
+                    size: 0.5
+                }, {
+                    elem: 'O',
+                    pos: [-1.21, -0.7, 0],
+                    color: '#e11d48',
+                    size: 0.5
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 1],
+                    [0, 2],
+                    [0, 2],
+                    [0, 3],
+                    [0, 3]
+                ]
+            }, {
+                id: 'ethene',
+                name: 'Ethene',
+                formula: 'C₂H₄',
+                category: 'Organic',
+                hybridization: 'sp²',
+                angle: '120°',
+                shape: 'Trigonal Planar',
+                desc: 'Plant hormone for fruit ripening.',
+                atoms: [{
+                    elem: 'C',
+                    pos: [-0.66, 0, 0],
+                    color: '#333',
+                    size: 0.6
+                }, {
+                    elem: 'C',
+                    pos: [0.66, 0, 0],
+                    color: '#333',
+                    size: 0.6
+                }, {
+                    elem: 'H',
+                    pos: [-1.2, 0.92, 0],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-1.2, -0.92, 0],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [1.2, 0.92, 0],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [1.2, -0.92, 0],
+                    color: '#eee',
+                    size: 0.3
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [1, 4],
+                    [1, 5]
+                ]
+            }, {
+                id: 'benzene',
+                name: 'Benzene',
+                formula: 'C₆H₆',
+                category: 'Organic',
+                hybridization: 'sp²',
+                angle: '120°',
+                shape: 'Hexagonal Planar',
+                desc: 'Aromatic hydrocarbon with delocalized pi electrons.',
+                atoms: [{
+                    elem: 'C',
+                    pos: [1.4, 0, 0],
+                    color: '#333',
+                    size: 0.5
+                }, {
+                    elem: 'C',
+                    pos: [0.7, 1.21, 0],
+                    color: '#333',
+                    size: 0.5
+                }, {
+                    elem: 'C',
+                    pos: [-0.7, 1.21, 0],
+                    color: '#333',
+                    size: 0.5
+                }, {
+                    elem: 'C',
+                    pos: [-1.4, 0, 0],
+                    color: '#333',
+                    size: 0.5
+                }, {
+                    elem: 'C',
+                    pos: [-0.7, -1.21, 0],
+                    color: '#333',
+                    size: 0.5
+                }, {
+                    elem: 'C',
+                    pos: [0.7, -1.21, 0],
+                    color: '#333',
+                    size: 0.5
+                }, {
+                    elem: 'H',
+                    pos: [2.4, 0, 0],
+                    color: '#eee',
+                    size: 0.25
+                }, {
+                    elem: 'H',
+                    pos: [1.2, 2.08, 0],
+                    color: '#eee',
+                    size: 0.25
+                }, {
+                    elem: 'H',
+                    pos: [-1.2, 2.08, 0],
+                    color: '#eee',
+                    size: 0.25
+                }, {
+                    elem: 'H',
+                    pos: [-2.4, 0, 0],
+                    color: '#eee',
+                    size: 0.25
+                }, {
+                    elem: 'H',
+                    pos: [-1.2, -2.08, 0],
+                    color: '#eee',
+                    size: 0.25
+                }, {
+                    elem: 'H',
+                    pos: [1.2, -2.08, 0],
+                    color: '#eee',
+                    size: 0.25
+                }],
+                bonds: [
+                    [0, 1],
+                    [1, 2],
+                    [2, 3],
+                    [3, 4],
+                    [4, 5],
+                    [5, 0],
+                    [0, 6],
+                    [1, 7],
+                    [2, 8],
+                    [3, 9],
+                    [4, 10],
+                    [5, 11]
+                ]
+            }, {
+                id: 'no3',
+                name: 'Nitrate Ion',
+                formula: 'NO₃⁻',
+                category: 'Inorganic',
+                hybridization: 'sp²',
+                angle: '120°',
+                shape: 'Trigonal Planar',
+                desc: 'Resonance stabilized polyatomic ion.',
+                atoms: [{
+                    elem: 'N',
+                    pos: [0, 0, 0],
+                    color: '#2563eb',
+                    size: 0.6
+                }, {
+                    elem: 'O',
+                    pos: [0, 1.3, 0],
+                    color: '#e11d48',
+                    size: 0.5
+                }, {
+                    elem: 'O',
+                    pos: [1.12, -0.65, 0],
+                    color: '#e11d48',
+                    size: 0.5
+                }, {
+                    elem: 'O',
+                    pos: [-1.12, -0.65, 0],
+                    color: '#e11d48',
+                    size: 0.5
+                }],
+                bonds: [
+                        [0, 1],
+                        [0, 1],
+                        [0, 2],
+                        [0, 3]
+                    ] // Showing resonance hybrid approx
+            }, {
+                id: 'co3',
+                name: 'Carbonate Ion',
+                formula: 'CO₃²⁻',
+                category: 'Inorganic',
+                hybridization: 'sp²',
+                angle: '120°',
+                shape: 'Trigonal Planar',
+                desc: 'Found in limestone and marble.',
+                atoms: [{
+                    elem: 'C',
+                    pos: [0, 0, 0],
+                    color: '#333',
+                    size: 0.6
+                }, {
+                    elem: 'O',
+                    pos: [0, 1.3, 0],
+                    color: '#e11d48',
+                    size: 0.5
+                }, {
+                    elem: 'O',
+                    pos: [1.12, -0.65, 0],
+                    color: '#e11d48',
+                    size: 0.5
+                }, {
+                    elem: 'O',
+                    pos: [-1.12, -0.65, 0],
+                    color: '#e11d48',
+                    size: 0.5
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 1],
+                    [0, 2],
+                    [0, 3]
+                ]
+            }, {
+                id: 'h2co',
+                name: 'Formaldehyde',
+                formula: 'H₂CO',
+                category: 'Organic',
+                hybridization: 'sp²',
+                angle: '~120°',
+                shape: 'Trigonal Planar',
+                desc: 'Simplest aldehyde. Used as a preservative.',
+                atoms: [{
+                    elem: 'C',
+                    pos: [0, 0, 0],
+                    color: '#333',
+                    size: 0.6
+                }, {
+                    elem: 'O',
+                    pos: [0, 1.2, 0],
+                    color: '#e11d48',
+                    size: 0.55
+                }, {
+                    elem: 'H',
+                    pos: [0.94, -0.55, 0],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-0.94, -0.55, 0],
+                    color: '#eee',
+                    size: 0.3
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 1],
+                    [0, 2],
+                    [0, 3]
+                ]
+            }, {
+                id: 'so2',
+                name: 'Sulfur Dioxide',
+                formula: 'SO₂',
+                category: 'Inorganic',
+                hybridization: 'sp²',
+                angle: '119°',
+                shape: 'V-Shape / Bent',
+                desc: 'Bent due to one lone pair on Sulfur.',
+                atoms: [{
+                    elem: 'S',
+                    pos: [0, 0.2, 0],
+                    color: '#fbbf24',
+                    size: 0.65
+                }, {
+                    elem: 'O',
+                    pos: [1.1, -0.5, 0],
+                    color: '#e11d48',
+                    size: 0.5
+                }, {
+                    elem: 'O',
+                    pos: [-1.1, -0.5, 0],
+                    color: '#e11d48',
+                    size: 0.5
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 1],
+                    [0, 2],
+                    [0, 2]
+                ]
+            }, {
+                id: 'alcl3',
+                name: 'Aluminum Chloride',
+                formula: 'AlCl₃',
+                category: 'Inorganic',
+                hybridization: 'sp²',
+                angle: '120°',
+                shape: 'Trigonal Planar',
+                desc: 'Electron deficient, acts as a Lewis acid.',
+                atoms: [{
+                    elem: 'Al',
+                    pos: [0, 0, 0],
+                    color: '#cbd5e1',
+                    size: 0.65
+                }, {
+                    elem: 'Cl',
+                    pos: [0, 1.5, 0],
+                    color: '#10b981',
+                    size: 0.5
+                }, {
+                    elem: 'Cl',
+                    pos: [1.3, -0.75, 0],
+                    color: '#10b981',
+                    size: 0.5
+                }, {
+                    elem: 'Cl',
+                    pos: [-1.3, -0.75, 0],
+                    color: '#10b981',
+                    size: 0.5
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3]
+                ]
+            },
+
+            // --- sp3 HYBRIDIZATION ---
+            {
+                id: 'ch4',
+                name: 'Methane',
+                formula: 'CH₄',
+                category: 'Organic',
+                hybridization: 'sp³',
+                angle: '109.5°',
+                shape: 'Tetrahedral',
+                desc: 'Simplest alkane. Main component of natural gas.',
+                atoms: [{
+                    elem: 'C',
+                    pos: [0, 0, 0],
+                    color: '#333',
+                    size: 0.6
+                }, {
+                    elem: 'H',
+                    pos: [0.63, 0.63, 0.63],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-0.63, -0.63, 0.63],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-0.63, 0.63, -0.63],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [0.63, -0.63, -0.63],
+                    color: '#eee',
+                    size: 0.3
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4]
+                ]
+            }, {
+                id: 'nh3',
+                name: 'Ammonia',
+                formula: 'NH₃',
+                category: 'Inorganic',
+                hybridization: 'sp³',
+                angle: '107°',
+                shape: 'Trigonal Pyramidal',
+                desc: 'Distorted tetrahedron due to 1 lone pair.',
+                atoms: [{
+                    elem: 'N',
+                    pos: [0, 0.1, 0],
+                    color: '#2563eb',
+                    size: 0.6
+                }, {
+                    elem: 'H',
+                    pos: [0, -0.4, 0.94],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [0.81, -0.4, -0.47],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-0.81, -0.4, -0.47],
+                    color: '#eee',
+                    size: 0.3
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3]
+                ]
+            }, {
+                id: 'h2o',
+                name: 'Water',
+                formula: 'H₂O',
+                category: 'Inorganic',
+                hybridization: 'sp³',
+                angle: '104.5°',
+                shape: 'Bent / V-Shape',
+                desc: 'Distorted due to 2 lone pairs.',
+                atoms: [{
+                    elem: 'O',
+                    pos: [0, 0, 0.1],
+                    color: '#e11d48',
+                    size: 0.6
+                }, {
+                    elem: 'H',
+                    pos: [0.76, 0.6, -0.1],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-0.76, 0.6, -0.1],
+                    color: '#eee',
+                    size: 0.3
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2]
+                ]
+            }, {
+                id: 'ethane',
+                name: 'Ethane',
+                formula: 'C₂H₆',
+                category: 'Organic',
+                hybridization: 'sp³',
+                angle: '109.5°',
+                shape: 'Tetrahedral (at C)',
+                desc: 'Saturated hydrocarbon.',
+                atoms: [{
+                    elem: 'C',
+                    pos: [-0.77, 0, 0],
+                    color: '#333',
+                    size: 0.6
+                }, {
+                    elem: 'C',
+                    pos: [0.77, 0, 0],
+                    color: '#333',
+                    size: 0.6
+                }, {
+                    elem: 'H',
+                    pos: [-1.1, -1.0, 0],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-1.1, 0.5, 0.89],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-1.1, 0.5, -0.89],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [1.1, 1.0, 0],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [1.1, -0.5, -0.89],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [1.1, -0.5, 0.89],
+                    color: '#eee',
+                    size: 0.3
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4],
+                    [1, 5],
+                    [1, 6],
+                    [1, 7]
+                ]
+            }, {
+                id: 'methanol',
+                name: 'Methanol',
+                formula: 'CH₃OH',
+                category: 'Organic',
+                hybridization: 'sp³',
+                angle: '109°',
+                shape: 'Tetrahedral',
+                desc: 'Wood alcohol.',
+                atoms: [{
+                    elem: 'C',
+                    pos: [-0.4, 0, 0],
+                    color: '#333',
+                    size: 0.6
+                }, {
+                    elem: 'O',
+                    pos: [0.7, 0, 0],
+                    color: '#e11d48',
+                    size: 0.55
+                }, {
+                    elem: 'H',
+                    pos: [1.1, 0.8, 0],
+                    color: '#eee',
+                    size: 0.25
+                }, {
+                    elem: 'H',
+                    pos: [-0.7, 1.0, 0],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-0.7, -0.5, 0.89],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-0.7, -0.5, -0.89],
+                    color: '#eee',
+                    size: 0.3
+                }],
+                bonds: [
+                    [0, 1],
+                    [1, 2],
+                    [0, 3],
+                    [0, 4],
+                    [0, 5]
+                ]
+            }, {
+                id: 'ch3cl',
+                name: 'Methyl Chloride',
+                formula: 'CH₃Cl',
+                category: 'Organic',
+                hybridization: 'sp³',
+                angle: '109.5°',
+                shape: 'Tetrahedral',
+                desc: 'Used as a refrigerant in the past.',
+                atoms: [{
+                    elem: 'C',
+                    pos: [0, 0, 0],
+                    color: '#333',
+                    size: 0.6
+                }, {
+                    elem: 'Cl',
+                    pos: [0, 1.5, 0],
+                    color: '#10b981',
+                    size: 0.6
+                }, {
+                    elem: 'H',
+                    pos: [0.94, -0.5, 0],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-0.47, -0.5, 0.81],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-0.47, -0.5, -0.81],
+                    color: '#eee',
+                    size: 0.3
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4]
+                ]
+            }, {
+                id: 'nh4',
+                name: 'Ammonium Ion',
+                formula: 'NH₄⁺',
+                category: 'Inorganic',
+                hybridization: 'sp³',
+                angle: '109.5°',
+                shape: 'Tetrahedral',
+                desc: 'Positive ion, isoelectronic with Methane.',
+                atoms: [{
+                    elem: 'N',
+                    pos: [0, 0, 0],
+                    color: '#2563eb',
+                    size: 0.6
+                }, {
+                    elem: 'H',
+                    pos: [0.63, 0.63, 0.63],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-0.63, -0.63, 0.63],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-0.63, 0.63, -0.63],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [0.63, -0.63, -0.63],
+                    color: '#eee',
+                    size: 0.3
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4]
+                ]
+            }, {
+                id: 'so4',
+                name: 'Sulfate Ion',
+                formula: 'SO₄²⁻',
+                category: 'Inorganic',
+                hybridization: 'sp³',
+                angle: '109.5°',
+                shape: 'Tetrahedral',
+                desc: 'Common polyatomic anion.',
+                atoms: [{
+                    elem: 'S',
+                    pos: [0, 0, 0],
+                    color: '#fbbf24',
+                    size: 0.65
+                }, {
+                    elem: 'O',
+                    pos: [0.8, 0.8, 0.8],
+                    color: '#e11d48',
+                    size: 0.5
+                }, {
+                    elem: 'O',
+                    pos: [-0.8, -0.8, 0.8],
+                    color: '#e11d48',
+                    size: 0.5
+                }, {
+                    elem: 'O',
+                    pos: [-0.8, 0.8, -0.8],
+                    color: '#e11d48',
+                    size: 0.5
+                }, {
+                    elem: 'O',
+                    pos: [0.8, -0.8, -0.8],
+                    color: '#e11d48',
+                    size: 0.5
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4]
+                ]
+            }, {
+                id: 'clo4',
+                name: 'Perchlorate Ion',
+                formula: 'ClO₄⁻',
+                category: 'Inorganic',
+                hybridization: 'sp³',
+                angle: '109.5°',
+                shape: 'Tetrahedral',
+                desc: 'Strong oxidizer.',
+                atoms: [{
+                    elem: 'Cl',
+                    pos: [0, 0, 0],
+                    color: '#10b981',
+                    size: 0.65
+                }, {
+                    elem: 'O',
+                    pos: [0.8, 0.8, 0.8],
+                    color: '#e11d48',
+                    size: 0.5
+                }, {
+                    elem: 'O',
+                    pos: [-0.8, -0.8, 0.8],
+                    color: '#e11d48',
+                    size: 0.5
+                }, {
+                    elem: 'O',
+                    pos: [-0.8, 0.8, -0.8],
+                    color: '#e11d48',
+                    size: 0.5
+                }, {
+                    elem: 'O',
+                    pos: [0.8, -0.8, -0.8],
+                    color: '#e11d48',
+                    size: 0.5
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4]
+                ]
+            }, {
+                id: 'h3o',
+                name: 'Hydronium Ion',
+                formula: 'H₃O⁺',
+                category: 'Inorganic',
+                hybridization: 'sp³',
+                angle: '107°',
+                shape: 'Trigonal Pyramidal',
+                desc: 'Formed when acid dissolves in water.',
+                atoms: [{
+                    elem: 'O',
+                    pos: [0, 0.1, 0],
+                    color: '#e11d48',
+                    size: 0.6
+                }, {
+                    elem: 'H',
+                    pos: [0, -0.4, 0.94],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [0.81, -0.4, -0.47],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-0.81, -0.4, -0.47],
+                    color: '#eee',
+                    size: 0.3
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3]
+                ]
+            }, {
+                id: 'ph3',
+                name: 'Phosphine',
+                formula: 'PH₃',
+                category: 'Inorganic',
+                hybridization: 'sp³',
+                angle: '93.5°',
+                shape: 'Trigonal Pyramidal',
+                desc: 'Toxic gas. Bond angle is closer to 90° (Drago Rule).',
+                atoms: [{
+                    elem: 'P',
+                    pos: [0, 0.1, 0],
+                    color: '#d97706',
+                    size: 0.65
+                }, {
+                    elem: 'H',
+                    pos: [0, -0.4, 1.0],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [0.86, -0.4, -0.5],
+                    color: '#eee',
+                    size: 0.3
+                }, {
+                    elem: 'H',
+                    pos: [-0.86, -0.4, -0.5],
+                    color: '#eee',
+                    size: 0.3
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3]
+                ]
+            },
+
+            // --- sp3d HYBRIDIZATION ---
+            {
+                id: 'pcl5',
+                name: 'Phosphorus Pentachloride',
+                formula: 'PCl₅',
+                category: 'Inorganic',
+                hybridization: 'sp³d',
+                angle: '90° & 120°',
+                shape: 'Trigonal Bipyramidal',
+                desc: 'Expanded octet. Axial bonds longer than equatorial.',
+                atoms: [{
+                    elem: 'P',
+                    pos: [0, 0, 0],
+                    color: '#d97706',
+                    size: 0.65
+                }, {
+                    elem: 'Cl',
+                    pos: [0, 1.8, 0],
+                    color: '#10b981',
+                    size: 0.5
+                }, {
+                    elem: 'Cl',
+                    pos: [0, -1.8, 0],
+                    color: '#10b981',
+                    size: 0.5
+                }, {
+                    elem: 'Cl',
+                    pos: [1.6, 0, 0],
+                    color: '#10b981',
+                    size: 0.5
+                }, {
+                    elem: 'Cl',
+                    pos: [-0.8, 0, 1.4],
+                    color: '#10b981',
+                    size: 0.5
+                }, {
+                    elem: 'Cl',
+                    pos: [-0.8, 0, -1.4],
+                    color: '#10b981',
+                    size: 0.5
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4],
+                    [0, 5]
+                ]
+            }, {
+                id: 'sf4',
+                name: 'Sulfur Tetrafluoride',
+                formula: 'SF₄',
+                category: 'Inorganic',
+                hybridization: 'sp³d',
+                angle: 'See-Saw',
+                shape: 'See-Saw',
+                desc: 'One lone pair in equatorial position.',
+                atoms: [{
+                    elem: 'S',
+                    pos: [0, 0, 0],
+                    color: '#fbbf24',
+                    size: 0.65
+                }, {
+                    elem: 'F',
+                    pos: [0, 1.6, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, -1.6, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [1.2, 0, 0.8],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [-1.2, 0, 0.8],
+                    color: '#a3e635',
+                    size: 0.45
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4]
+                ]
+            }, {
+                id: 'if3',
+                name: 'Iodine Trifluoride',
+                formula: 'IF₃',
+                category: 'Inorganic',
+                hybridization: 'sp³d',
+                angle: 'T-Shape',
+                shape: 'T-Shape',
+                desc: 'Two lone pairs in equatorial positions.',
+                atoms: [{
+                    elem: 'I',
+                    pos: [0, 0, 0],
+                    color: '#a855f7',
+                    size: 0.7
+                }, {
+                    elem: 'F',
+                    pos: [0, 1.6, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, -1.6, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [1.6, 0, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3]
+                ]
+            }, {
+                id: 'pf5',
+                name: 'Phosphorus Pentafluoride',
+                formula: 'PF₅',
+                category: 'Inorganic',
+                hybridization: 'sp³d',
+                angle: '90° & 120°',
+                shape: 'Trigonal Bipyramidal',
+                desc: 'Hypervalent molecule.',
+                atoms: [{
+                    elem: 'P',
+                    pos: [0, 0, 0],
+                    color: '#d97706',
+                    size: 0.65
+                }, {
+                    elem: 'F',
+                    pos: [0, 1.5, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, -1.5, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [1.4, 0, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [-0.7, 0, 1.2],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [-0.7, 0, -1.2],
+                    color: '#a3e635',
+                    size: 0.45
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4],
+                    [0, 5]
+                ]
+            }, {
+                id: 'brf3',
+                name: 'Bromine Trifluoride',
+                formula: 'BrF₃',
+                category: 'Inorganic',
+                hybridization: 'sp³d',
+                angle: 'T-Shape',
+                shape: 'T-Shape',
+                desc: 'Interhalogen compound.',
+                atoms: [{
+                    elem: 'Br',
+                    pos: [0, 0, 0],
+                    color: '#881337',
+                    size: 0.7
+                }, {
+                    elem: 'F',
+                    pos: [0, 1.6, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, -1.6, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [1.6, 0, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3]
+                ]
+            },
+
+            // --- sp3d2 HYBRIDIZATION ---
+            {
+                id: 'sf6',
+                name: 'Sulfur Hexafluoride',
+                formula: 'SF₆',
+                category: 'Inorganic',
+                hybridization: 'sp³d²',
+                angle: '90°',
+                shape: 'Octahedral',
+                desc: 'Highly symmetrical and inert gas.',
+                atoms: [{
+                    elem: 'S',
+                    pos: [0, 0, 0],
+                    color: '#fbbf24',
+                    size: 0.65
+                }, {
+                    elem: 'F',
+                    pos: [1.4, 0, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [-1.4, 0, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, 1.4, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, -1.4, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, 0, 1.4],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, 0, -1.4],
+                    color: '#a3e635',
+                    size: 0.45
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4],
+                    [0, 5],
+                    [0, 6]
+                ]
+            }, {
+                id: 'pf6',
+                name: 'Hexafluorophosphate',
+                formula: 'PF₆⁻',
+                category: 'Inorganic',
+                hybridization: 'sp³d²',
+                angle: '90°',
+                shape: 'Octahedral',
+                desc: 'Anion used in ionic liquids.',
+                atoms: [{
+                    elem: 'P',
+                    pos: [0, 0, 0],
+                    color: '#d97706',
+                    size: 0.65
+                }, {
+                    elem: 'F',
+                    pos: [1.4, 0, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [-1.4, 0, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, 1.4, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, -1.4, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, 0, 1.4],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, 0, -1.4],
+                    color: '#a3e635',
+                    size: 0.45
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4],
+                    [0, 5],
+                    [0, 6]
+                ]
+            }, {
+                id: 'if5',
+                name: 'Iodine Pentafluoride',
+                formula: 'IF₅',
+                category: 'Inorganic',
+                hybridization: 'sp³d²',
+                angle: '90°',
+                shape: 'Square Pyramidal',
+                desc: 'One lone pair distorts the octahedron.',
+                atoms: [{
+                    elem: 'I',
+                    pos: [0, -0.2, 0],
+                    color: '#a855f7',
+                    size: 0.7
+                }, {
+                    elem: 'F',
+                    pos: [0, 1.4, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [1.2, -0.4, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [-1.2, -0.4, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, -0.4, 1.2],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, -0.4, -1.2],
+                    color: '#a3e635',
+                    size: 0.45
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4],
+                    [0, 5]
+                ]
+            }, {
+                id: 'xef4',
+                name: 'Xenon Tetrafluoride',
+                formula: 'XeF₄',
+                category: 'Inorganic',
+                hybridization: 'sp³d²',
+                angle: '90°',
+                shape: 'Square Planar',
+                desc: 'Noble gas compound. Two lone pairs on axial positions.',
+                atoms: [{
+                    elem: 'Xe',
+                    pos: [0, 0, 0],
+                    color: '#06b6d4',
+                    size: 0.7
+                }, {
+                    elem: 'F',
+                    pos: [1.4, 0, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [-1.4, 0, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, 0, 1.4],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, 0, -1.4],
+                    color: '#a3e635',
+                    size: 0.45
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4]
+                ]
+            }, {
+                id: 'brf5',
+                name: 'Bromine Pentafluoride',
+                formula: 'BrF₅',
+                category: 'Inorganic',
+                hybridization: 'sp³d²',
+                angle: '90°',
+                shape: 'Square Pyramidal',
+                desc: 'Very reactive interhalogen compound.',
+                atoms: [{
+                    elem: 'Br',
+                    pos: [0, -0.2, 0],
+                    color: '#881337',
+                    size: 0.7
+                }, {
+                    elem: 'F',
+                    pos: [0, 1.4, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [1.2, -0.4, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [-1.2, -0.4, 0],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, -0.4, 1.2],
+                    color: '#a3e635',
+                    size: 0.45
+                }, {
+                    elem: 'F',
+                    pos: [0, -0.4, -1.2],
+                    color: '#a3e635',
+                    size: 0.45
+                }],
+                bonds: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 3],
+                    [0, 4],
+                    [0, 5]
+                ]
+            }
+        ];
+
+        // --- 2. GLOBAL STATE ---
+        let state = {
+            selectedId: 'becl2', // Default start with first one
+            isMenuOpen: window.innerWidth > 768,
+            autoRotate: true,
+            showInfo: true,
+            category: 'All'
+        };
+
+        // --- 3. THREE.JS VARIABLES ---
+        let scene, camera, renderer, controls, moleculeGroup;
+        const container = document.getElementById('canvas-container');
+
+        // --- 4. ICON HELPER ---
+        const getIcon = (name) => {
+            if (name === 'menu') return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg>`;
+            if (name === 'close') return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>`;
+            if (name === 'rotate') return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></svg>`;
+            if (name === 'info') return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>`;
+            if (name === 'flask') return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.31" /><path d="M14 2v7.31" /><path d="M8.5 2h7" /><path d="M14 9.3a6.5 6.5 0 1 1-4 0" /><path d="M5.52 16h12.96" /></svg>`;
+            return '';
+        };
+
+        // --- 5. INITIALIZE APP ---
+        function init() {
+            initThreeJS();
+            renderStaticIcons();
+            updateUI();
+
+            // Animation Loop
+            const animate = () => {
+                requestAnimationFrame(animate);
+                if (controls) controls.update();
+                if (moleculeGroup && state.autoRotate) {
+                    moleculeGroup.rotation.y += 0.003;
+                }
+                if (renderer && scene && camera) renderer.render(scene, camera);
+            };
+            animate();
+
+            // Window Resize
+            window.addEventListener('resize', () => {
+                if (!container) return;
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+
+                // Responsive menu check
+                if (window.innerWidth < 768 && state.isMenuOpen) {
+                    state.isMenuOpen = false;
+                    updateUI();
+                } else if (window.innerWidth >= 768 && !state.isMenuOpen) {
+                    state.isMenuOpen = true;
+                    updateUI();
+                }
+            });
+        }
+
+        // --- 6. THREE.JS LOGIC ---
+        function initThreeJS() {
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
+            camera.position.set(0, 0, 8);
+
+            renderer = new THREE.WebGLRenderer({
+                alpha: true,
+                antialias: true
+            });
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 2;
+            controls.maxDistance = 20;
+
+            // Lighting
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambient);
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            mainLight.position.set(10, 10, 10);
+            scene.add(mainLight);
+            const fillLight = new THREE.PointLight(0x3b82f6, 0.8);
+            fillLight.position.set(-10, 0, -10);
+            scene.add(fillLight);
+            const backLight = new THREE.PointLight(0xffffff, 0.5);
+            backLight.position.set(0, -10, 5);
+            scene.add(backLight);
+
+            moleculeGroup = new THREE.Group();
+            scene.add(moleculeGroup);
+
+            updateMolecule3D();
+        }
+
+        function updateMolecule3D() {
+            // Clear old
+            while (moleculeGroup.children.length > 0) {
+                moleculeGroup.remove(moleculeGroup.children[0]);
+            }
+
+            const data = MOLECULES.find(m => m.id === state.selectedId);
+            if (!data) return;
+
+            // Add Atoms
+            data.atoms.forEach(atom => {
+                const geometry = new THREE.SphereGeometry(atom.size, 32, 32);
+                const material = new THREE.MeshPhysicalMaterial({
+                    color: atom.color,
+                    roughness: 0.3,
+                    metalness: 0.1,
+                    clearcoat: 0.8,
+                    clearcoatRoughness: 0.1
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(...atom.pos);
+                moleculeGroup.add(sphere);
+            });
+
+            // Add Bonds
+            data.bonds.forEach(([i, j]) => {
+                const start = new THREE.Vector3(...data.atoms[i].pos);
+                const end = new THREE.Vector3(...data.atoms[j].pos);
+                const direction = new THREE.Vector3().subVectors(end, start);
+                const dist = direction.length();
+
+                const bondGeo = new THREE.CylinderGeometry(0.12, 0.12, dist, 12);
+                const bondMat = new THREE.MeshStandardMaterial({
+                    color: 0xcbd5e1,
+                    roughness: 0.4
+                });
+                const cylinder = new THREE.Mesh(bondGeo, bondMat);
+
+                const axis = new THREE.Vector3(0, 1, 0);
+                cylinder.quaternion.setFromUnitVectors(axis, direction.clone().normalize());
+                cylinder.position.copy(new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5));
+                moleculeGroup.add(cylinder);
+            });
+        }
+
+        // --- 7. DOM RENDERING LOGIC ---
+
+        function renderStaticIcons() {
+            document.getElementById('mobile-icon-container').innerHTML = getIcon('flask');
+            document.getElementById('mobile-menu-btn').innerHTML = getIcon('menu');
+            document.getElementById('sidebar-logo-icon').innerHTML = getIcon('flask');
+            document.getElementById('close-menu-btn').innerHTML = getIcon('close');
+            document.getElementById('btn-info').innerHTML = getIcon('info');
+            document.getElementById('btn-rotate').innerHTML = getIcon('rotate');
+
+            document.getElementById('mobile-menu-btn').onclick = () => {
+                state.isMenuOpen = true;
+                updateUI();
+            };
+            document.getElementById('close-menu-btn').onclick = () => {
+                state.isMenuOpen = false;
+                updateUI();
+            };
+            document.getElementById('btn-info').onclick = () => {
+                state.showInfo = !state.showInfo;
+                updateUI();
+            };
+            document.getElementById('btn-rotate').onclick = () => {
+                state.autoRotate = !state.autoRotate;
+                updateUI();
+            };
+        }
+
+        function updateUI() {
+            renderSidebar();
+            renderInfoCard();
+            updateControlsState();
+        }
+
+        function updateControlsState() {
+            const sidebar = document.getElementById('sidebar');
+            if (state.isMenuOpen) {
+                sidebar.classList.remove('-translate-x-full');
+                sidebar.classList.add('translate-x-0');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                sidebar.classList.remove('translate-x-0');
+            }
+
+            const btnInfo = document.getElementById('btn-info');
+            const btnRotate = document.getElementById('btn-rotate');
+            btnInfo.className = `p-3 rounded-full glass transition-colors shadow-lg ${state.showInfo ? 'text-blue-400 bg-white/10' : 'text-white'}`;
+            btnRotate.className = `p-3 rounded-full glass transition-colors shadow-lg ${state.autoRotate ? 'text-blue-400 bg-white/10' : 'text-white'}`;
+        }
+
+        function renderSidebar() {
+            // Filters
+            const categories = ['All', 'Organic', 'Inorganic'];
+            const filterContainer = document.getElementById('filter-container');
+            filterContainer.innerHTML = '';
+            categories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.innerText = cat;
+                const isActive = state.category === cat;
+                btn.className = `py-2 text-xs font-bold rounded-lg transition-all ${isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`;
+                btn.onclick = () => {
+                    state.category = cat;
+                    updateUI();
+                };
+                filterContainer.appendChild(btn);
+            });
+
+            // List
+            const listContainer = document.getElementById('molecule-list');
+            listContainer.innerHTML = '';
+            const filtered = state.category === 'All' ? MOLECULES : MOLECULES.filter(m => m.category === state.category);
+
+            filtered.forEach(mol => {
+                const btn = document.createElement('button');
+                const isSelected = state.selectedId === mol.id;
+                btn.className = `w-full text-left p-3 rounded-xl border transition-all duration-200 group relative overflow-hidden mb-2 ${isSelected ? 'bg-blue-600/20 border-blue-500/50 text-white' : 'bg-white/5 border-transparent text-slate-400 hover:bg-white/10'}`;
+                btn.innerHTML = `
+                    <div class="relative z-10 flex justify-between items-center">
+                        <div>
+                            <div class="font-semibold ${isSelected ? 'text-blue-300' : 'text-slate-200'}">${mol.name}</div>
+                            <div class="text-xs opacity-60">${mol.shape}</div>
+                        </div>
+                        <div class="font-mono text-xs bg-black/20 px-2 py-1 rounded text-white/80">${mol.formula}</div>
+                    </div>
+                `;
+                btn.onclick = () => {
+                    state.selectedId = mol.id;
+                    if (window.innerWidth < 768) state.isMenuOpen = false;
+                    state.showInfo = true;
+                    updateUI();
+                    updateMolecule3D();
+                };
+                listContainer.appendChild(btn);
+            });
+        }
+
+        function renderInfoCard() {
+            const card = document.getElementById('info-card');
+            if (!state.showInfo) {
+                card.classList.add('hidden-force');
+                return;
+            } else {
+                card.classList.remove('hidden-force');
+            }
+
+            const current = MOLECULES.find(m => m.id === state.selectedId);
+            if (!current) return;
+
+            card.innerHTML = `
+                <div class="glass-light p-6 rounded-2xl shadow-2xl text-slate-800 border-l-8 border-blue-600 max-h-[50vh] md:max-h-none overflow-y-auto custom-scroll">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h2 class="text-3xl font-bold text-slate-900 leading-none tracking-tight">${current.name}</h2>
+                            <span class="inline-block mt-2 px-2 py-1 bg-slate-200 text-slate-600 rounded font-mono text-sm font-bold">${current.formula}</span>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[10px] uppercase font-black text-slate-400 tracking-widest">Hybridization</div>
+                            <div class="text-2xl font-bold text-blue-600">${current.hybridization}</div>
+                        </div>
+                    </div>
+                    <div class="h-px bg-slate-200 my-4"></div>
+                    <p class="text-sm text-slate-600 mb-5 leading-relaxed font-medium">${current.desc}</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-100 p-3 rounded-xl">
+                            <div class="text-xs text-slate-500 font-bold uppercase mb-1">Bond Angle</div>
+                            <div class="text-slate-800 font-bold">${current.angle}</div>
+                        </div>
+                        <div class="bg-slate-100 p-3 rounded-xl">
+                            <div class="text-xs text-slate-500 font-bold uppercase mb-1">Shape</div>
+                            <div class="text-slate-800 font-bold text-sm">${current.shape}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

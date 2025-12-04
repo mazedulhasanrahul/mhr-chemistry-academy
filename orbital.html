@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MHR Chemistry Academy - 3D Visualizer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #0f172a;
+            /* Slate 900 */
+            color: white;
+            overflow: hidden;
+            /* Prevent scrolling, canvas takes full screen */
+        }
+        
+        h1,
+        h2,
+        .brand-font {
+            font-family: 'Orbitron', sans-serif;
+        }
+        
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        
+        .ui-layer {
+            position: relative;
+            z-index: 10;
+            pointer-events: none;
+            /* Let clicks pass through to canvas where needed */
+        }
+        
+        .interactive-element {
+            pointer-events: auto;
+        }
+        /* Custom Scrollbar for info panel */
+        
+         ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+         ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+         ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+         ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #38bdf8;
+            /* Sky 400 */
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+        }
+        
+        .active-btn {
+            background: rgba(56, 189, 248, 0.3);
+            border-color: #38bdf8;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+        /* Animation for showing/hiding controls */
+        
+        .fade-enter {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        .fade-enter-active {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 300ms, transform 300ms;
+        }
+    </style>
+</head>
+
+<body class="h-screen w-screen flex flex-col">
+
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Overlay -->
+    <div class="ui-layer flex flex-col h-full justify-between p-4 md:p-6">
+
+        <!-- Header -->
+        <header id="app-header" class="flex justify-between items-center interactive-element transition-all duration-300">
+            <div>
+                <h1 class="text-xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">
+                    MHR <span class="text-white text-base md:text-2xl">Academy</span>
+                </h1>
+                <p class="text-[10px] md:text-sm text-gray-400 mt-1">HSC Chemistry | 3D Visualization Lab</p>
+            </div>
+
+            <!-- Category Toggles -->
+            <div class="flex space-x-2 bg-slate-800/80 rounded-lg p-1 backdrop-blur-md border border-slate-700">
+                <button onclick="switchMode('orbitals')" id="mode-orbitals" class="interactive-element px-3 py-1 md:px-4 md:py-2 rounded-md text-xs md:text-sm font-bold transition-colors active-btn">Orbitals</button>
+                <button onclick="switchMode('models')" id="mode-models" class="interactive-element px-3 py-1 md:px-4 md:py-2 rounded-md text-xs md:text-sm font-bold transition-colors hover:bg-white/10">Atoms</button>
+            </div>
+        </header>
+
+        <!-- Floating PLAY/PAUSE Button (Bottom Left) -->
+        <button id="pause-btn" onclick="togglePause()" class="interactive-element absolute bottom-6 left-6 z-50 bg-slate-800/80 text-white p-3 rounded-full shadow-lg border border-slate-600 hover:bg-slate-700 transition-all transform hover:scale-110 group">
+            <i id="pause-icon" data-lucide="pause" class="w-6 h-6 group-hover:text-cyan-400 transition-colors"></i>
+        </button>
+
+        <!-- Floating SHOW MENU Button (Bottom Right - Hidden by default) -->
+        <button id="show-controls-btn" onclick="toggleControls(true)" class="hidden interactive-element absolute bottom-6 right-6 z-50 bg-cyan-600 text-white p-3 rounded-full shadow-lg shadow-cyan-500/50 hover:bg-cyan-500 transition-all transform hover:scale-110">
+            <i data-lucide="eye" class="w-6 h-6"></i>
+        </button>
+
+        <!-- Main Controls (Right Side on Desktop, Bottom on Mobile) -->
+        <main id="main-controls-container" class="flex flex-col md:flex-row flex-grow items-end md:items-center justify-center md:justify-end mt-4 pointer-events-none transition-opacity duration-300">
+
+            <!-- Controls Container -->
+            <div class="interactive-element w-full md:w-80 bg-slate-900/80 backdrop-blur-xl border border-slate-700 rounded-xl p-5 shadow-2xl flex flex-col gap-4 max-h-[50vh] md:max-h-[60vh] overflow-y-auto relative">
+
+                <!-- Hide Button inside panel -->
+                <button onclick="toggleControls(false)" class="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors">
+                    <i data-lucide="minimize-2" class="w-5 h-5"></i>
+                </button>
+
+                <div id="controls-orbitals" class="flex flex-col gap-3">
+                    <h3 class="text-cyan-400 font-bold border-b border-slate-700 pb-2 mb-2 brand-font pr-8">Select Orbital</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="loadOrbital('s')" class="btn-glass py-3 rounded text-center font-bold text-sm">s-orbital</button>
+                        <button onclick="loadOrbital('p')" class="btn-glass py-3 rounded text-center font-bold text-sm">p-orbital</button>
+                        <button onclick="loadOrbital('d')" class="btn-glass py-3 rounded text-center font-bold text-sm">d-orbital</button>
+                        <button onclick="loadOrbital('f')" class="btn-glass py-3 rounded text-center font-bold text-sm">f-orbital</button>
+                    </div>
+                </div>
+
+                <div id="controls-models" class="flex flex-col gap-3 hidden">
+                    <h3 class="text-purple-400 font-bold border-b border-slate-700 pb-2 mb-2 brand-font pr-8">Select Model</h3>
+                    <div class="grid grid-cols-1 gap-3">
+                        <button onclick="loadModel('rutherford')" class="btn-glass py-3 rounded flex items-center justify-center gap-2 text-sm">
+                            <span>☢️</span> Rutherford Model
+                        </button>
+                        <button onclick="loadModel('bohr')" class="btn-glass py-3 rounded flex items-center justify-center gap-2 text-sm">
+                            <span>⚛️</span> Bohr's Model
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Info Box -->
+                <div class="mt-2 bg-black/40 rounded p-3 border border-slate-700">
+                    <h4 id="info-title" class="text-md font-bold text-white mb-1">Welcome</h4>
+                    <p id="info-desc" class="text-xs text-gray-300 leading-relaxed">
+                        Welcome to MHR Chemistry Academy's 3D Lab. Select a mode above to explore.
+                    </p>
+                </div>
+
+                <div class="text-[10px] text-center text-gray-500 mt-1">
+                    Drag to rotate • Scroll to zoom
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Javascript Logic -->
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // --- Configuration & State ---
+        let scene, camera, renderer, controls;
+        let currentMeshGroup = new THREE.Group();
+        let animationId;
+        let electrons = [];
+        let animationType = null;
+        let time = 0;
+        let isPaused = false; // New state variable
+
+        // --- DOM Elements ---
+        const container = document.getElementById('canvas-container');
+        const infoTitle = document.getElementById('info-title');
+        const infoDesc = document.getElementById('info-desc');
+        const modeOrbitalsBtn = document.getElementById('mode-orbitals');
+        const modeModelsBtn = document.getElementById('mode-models');
+        const controlsOrbitals = document.getElementById('controls-orbitals');
+        const controlsModels = document.getElementById('controls-models');
+        const mainControlsContainer = document.getElementById('main-controls-container');
+        const showControlsBtn = document.getElementById('show-controls-btn');
+        const appHeader = document.getElementById('app-header');
+        const pauseBtn = document.getElementById('pause-btn');
+        const pauseIcon = document.getElementById('pause-icon');
+
+        // --- Content Data ---
+        const contentData = {
+            's': {
+                title: 's-Orbital (Spherical)',
+                desc: 'The s-orbital is spherical. Probability of finding an electron is uniform in all directions. Lowest energy level (l=0).'
+            },
+            'p': {
+                title: 'p-Orbital (Dumbbell)',
+                desc: 'The p-orbital has a dumbbell shape with two lobes. Three orientations: px, py, pz. (l=1).'
+            },
+            'd': {
+                title: 'd-Orbital (Cloverleaf)',
+                desc: 'Complex shapes, mostly four-lobed cloverleafs. Found in transition metals. (l=2).'
+            },
+            'f': {
+                title: 'f-Orbital (Complex)',
+                desc: 'Highly complex multi-lobed structures. Essential for Lanthanides/Actinides. (l=3).'
+            },
+            'rutherford': {
+                title: 'Rutherford Model',
+                desc: 'The "Planetary Model". A dense nucleus with electrons orbiting randomly. Failed to explain stability.'
+            },
+            'bohr': {
+                title: "Bohr's Model",
+                desc: 'Electrons orbit in fixed energy shells (K, L). Stable orbits prevent spiraling into the nucleus.'
+            }
+        };
+
+        // --- Initialization ---
+        function init() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x0f172a, 0.02);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 12);
+
+            renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                alpha: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            const ambientLight = new THREE.AmbientLight(0x404040, 2);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(0xffffff, 1.5);
+            pointLight.position.set(10, 10, 10);
+            scene.add(pointLight);
+
+            const pointLight2 = new THREE.PointLight(0x00ccff, 0.8);
+            pointLight2.position.set(-10, -5, 5);
+            scene.add(pointLight2);
+
+            addStars();
+
+            scene.add(currentMeshGroup);
+            loadOrbital('s');
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        // --- Visibility Toggle Logic ---
+        function toggleControls(show) {
+            if (show) {
+                mainControlsContainer.classList.remove('opacity-0', 'pointer-events-none');
+                mainControlsContainer.classList.add('opacity-100');
+                mainControlsContainer.querySelector('.interactive-element').style.pointerEvents = 'auto';
+                showControlsBtn.classList.add('hidden');
+                appHeader.classList.remove('opacity-0');
+            } else {
+                mainControlsContainer.classList.remove('opacity-100');
+                mainControlsContainer.classList.add('opacity-0');
+                mainControlsContainer.querySelector('.interactive-element').style.pointerEvents = 'none';
+                showControlsBtn.classList.remove('hidden');
+            }
+        }
+
+        // --- Pause/Play Logic ---
+        function togglePause() {
+            isPaused = !isPaused;
+            if (isPaused) {
+                pauseIcon.setAttribute('data-lucide', 'play');
+                pauseBtn.classList.add('bg-red-500/80'); // Visual feedback
+                pauseBtn.classList.remove('bg-slate-800/80');
+            } else {
+                pauseIcon.setAttribute('data-lucide', 'pause');
+                pauseBtn.classList.remove('bg-red-500/80');
+                pauseBtn.classList.add('bg-slate-800/80');
+            }
+            lucide.createIcons(); // Re-render icon
+        }
+
+        // --- Geometry Generators ---
+        function clearScene() {
+            while (currentMeshGroup.children.length > 0) {
+                const object = currentMeshGroup.children[0];
+                if (object.geometry) object.geometry.dispose();
+                if (object.material) object.material.dispose();
+                currentMeshGroup.remove(object);
+            }
+            electrons = [];
+            animationType = null;
+        }
+
+        function createNucleus() {
+            const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+            const material = new THREE.MeshPhongMaterial({
+                color: 0xff4444,
+                emissive: 0x550000,
+                shininess: 100
+            });
+            const nucleus = new THREE.Mesh(geometry, material);
+            const glowGeo = new THREE.SphereGeometry(0.6, 32, 32);
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: 0xff0000,
+                transparent: true,
+                opacity: 0.3
+            });
+            nucleus.add(new THREE.Mesh(glowGeo, glowMat));
+            return nucleus;
+        }
+
+        function createElectronMesh() {
+            const geometry = new THREE.SphereGeometry(0.15, 16, 16);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x00ffff
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            const glowGeo = new THREE.SphereGeometry(0.25, 16, 16);
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.4
+            });
+            mesh.add(new THREE.Mesh(glowGeo, glowMat));
+            return mesh;
+        }
+
+        // --- Loaders ---
+        function loadOrbital(type) {
+            clearScene();
+            updateUI(type);
+
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.6,
+                shininess: 90,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            const wireframeMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.1
+            });
+
+            if (type === 's') {
+                const geo = new THREE.SphereGeometry(3, 64, 64);
+                currentMeshGroup.add(new THREE.Mesh(geo, material));
+                currentMeshGroup.add(new THREE.Mesh(geo, wireframeMat));
+            } else if (type === 'p') {
+                const lobeGeo = new THREE.SphereGeometry(2, 32, 32);
+                lobeGeo.scale(1, 1.8, 1);
+                const top = new THREE.Mesh(lobeGeo, material);
+                top.position.y = 1.8;
+                const bot = new THREE.Mesh(lobeGeo, material);
+                bot.position.y = -1.8;
+                currentMeshGroup.add(top, bot);
+                currentMeshGroup.add(new THREE.AxesHelper(5));
+            } else if (type === 'd') {
+                const lobeGeo = new THREE.SphereGeometry(1.5, 32, 32);
+                lobeGeo.scale(0.8, 2, 0.8);
+                const positions = [{
+                    x: 1.5,
+                    y: 1.5,
+                    z: 0,
+                    r: -Math.PI / 4
+                }, {
+                    x: -1.5,
+                    y: -1.5,
+                    z: 0,
+                    r: -Math.PI / 4
+                }, {
+                    x: -1.5,
+                    y: 1.5,
+                    z: 0,
+                    r: Math.PI / 4
+                }, {
+                    x: 1.5,
+                    y: -1.5,
+                    z: 0,
+                    r: Math.PI / 4
+                }];
+                positions.forEach(p => {
+                    const l = new THREE.Mesh(lobeGeo, material);
+                    l.position.set(p.x, p.y, p.z);
+                    l.rotation.z = p.r;
+                    currentMeshGroup.add(l);
+                });
+            } else if (type === 'f') {
+                const lobeGeo = new THREE.SphereGeometry(1.2, 32, 32);
+                lobeGeo.scale(0.8, 1.5, 0.8);
+                const offsets = [
+                    [1, 1, 1],
+                    [1, 1, -1],
+                    [1, -1, 1],
+                    [1, -1, -1],
+                    [-1, 1, 1],
+                    [-1, 1, -1],
+                    [-1, -1, 1],
+                    [-1, -1, -1]
+                ];
+                offsets.forEach(c => {
+                    const l = new THREE.Mesh(lobeGeo, material);
+                    l.position.set(c[0] * 1.2, c[1] * 1.2, c[2] * 1.2);
+                    l.lookAt(0, 0, 0);
+                    currentMeshGroup.add(l);
+                });
+            }
+        }
+
+        function loadModel(type) {
+            clearScene();
+            updateUI(type);
+            currentMeshGroup.add(createNucleus());
+
+            if (type === 'rutherford') {
+                animationType = 'chaos';
+                for (let i = 0; i < 8; i++) {
+                    const el = createElectronMesh();
+                    const radius = 3 + Math.random() * 2;
+                    const pathGeo = new THREE.TorusGeometry(radius, 0.02, 16, 100);
+                    const pathMat = new THREE.MeshBasicMaterial({
+                        color: 0xffffff,
+                        opacity: 0.1,
+                        transparent: true
+                    });
+                    const path = new THREE.Mesh(pathGeo, pathMat);
+                    const tiltX = Math.random() * Math.PI;
+                    const tiltY = Math.random() * Math.PI;
+                    path.rotation.set(tiltX, tiltY, 0);
+                    currentMeshGroup.add(path);
+
+                    electrons.push({
+                        mesh: el,
+                        radius: radius,
+                        speed: 0.02 + Math.random() * 0.03,
+                        angle: Math.random() * Math.PI * 2,
+                        tiltX: tiltX,
+                        tiltY: tiltY
+                    });
+                    currentMeshGroup.add(el);
+                }
+            } else if (type === 'bohr') {
+                animationType = 'orbit';
+                createBohrShell(3, 2, 0.02);
+                createBohrShell(5.5, 8, 0.015);
+            }
+        }
+
+        function createBohrShell(r, count, s) {
+            const ringGeo = new THREE.RingGeometry(r - 0.05, r + 0.05, 64);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0x444444,
+                side: THREE.DoubleSide
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            currentMeshGroup.add(ring);
+            for (let i = 0; i < count; i++) {
+                const el = createElectronMesh();
+                electrons.push({
+                    mesh: el,
+                    radius: r,
+                    angle: (i / count) * Math.PI * 2,
+                    speed: s,
+                    axis: 'y'
+                });
+                currentMeshGroup.add(el);
+            }
+        }
+
+        function switchMode(mode) {
+            if (mode === 'orbitals') {
+                controlsOrbitals.classList.remove('hidden');
+                controlsModels.classList.add('hidden');
+                modeOrbitalsBtn.classList.add('active-btn');
+                modeOrbitalsBtn.classList.remove('hover:bg-white/10');
+                modeModelsBtn.classList.remove('active-btn');
+                modeModelsBtn.classList.add('hover:bg-white/10');
+                loadOrbital('s');
+            } else {
+                controlsOrbitals.classList.add('hidden');
+                controlsModels.classList.remove('hidden');
+                modeOrbitalsBtn.classList.remove('active-btn');
+                modeOrbitalsBtn.classList.add('hover:bg-white/10');
+                modeModelsBtn.classList.add('active-btn');
+                modeModelsBtn.classList.remove('hover:bg-white/10');
+                loadModel('rutherford');
+            }
+        }
+
+        function updateUI(key) {
+            const data = contentData[key];
+            if (data) {
+                infoTitle.textContent = data.title;
+                infoDesc.textContent = data.desc;
+                infoTitle.parentElement.classList.remove('animate-pulse');
+                void infoTitle.parentElement.offsetWidth;
+                infoTitle.parentElement.classList.add('animate-pulse');
+                setTimeout(() => infoTitle.parentElement.classList.remove('animate-pulse'), 500);
+            }
+        }
+
+        function addStars() {
+            const particlesGeometry = new THREE.BufferGeometry();
+            const count = 500;
+            const positions = new Float32Array(count * 3);
+            for (let i = 0; i < count * 3; i++) positions[i] = (Math.random() - 0.5) * 100;
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const particlesMaterial = new THREE.PointsMaterial({
+                size: 0.1,
+                color: 0xffffff
+            });
+            scene.add(new THREE.Points(particlesGeometry, particlesMaterial));
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            // ONLY ANIMATE IF NOT PAUSED
+            if (!isPaused) {
+                time += 0.01;
+
+                // 1. Rotate entire group (turntable effect)
+                if (!animationType) currentMeshGroup.rotation.y += 0.002;
+
+                // 2. Animate Electrons
+                if (animationType === 'chaos') {
+                    electrons.forEach(e => {
+                        e.angle += e.speed;
+                        const lx = Math.cos(e.angle) * e.radius;
+                        const ly = Math.sin(e.angle) * e.radius;
+                        let y1 = ly * Math.cos(e.tiltX);
+                        let z1 = ly * Math.sin(e.tiltX);
+                        let x2 = lx * Math.cos(e.tiltY) + z1 * Math.sin(e.tiltY);
+                        let z2 = -lx * Math.sin(e.tiltY) + z1 * Math.cos(e.tiltY);
+                        e.mesh.position.set(x2, y1, z2);
+                    });
+                } else if (animationType === 'orbit') {
+                    electrons.forEach(e => {
+                        e.angle += e.speed;
+                        e.mesh.position.x = Math.cos(e.angle) * e.radius;
+                        e.mesh.position.z = Math.sin(e.angle) * e.radius;
+                        e.mesh.position.y = 0;
+                    });
+                    // Global tilt for Bohr model
+                    currentMeshGroup.rotation.x = Math.PI / 6;
+                    currentMeshGroup.rotation.y += 0.001;
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

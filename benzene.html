@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benzene 3D Resonance Master - MHR Chemistry Academy</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        /* Deep Scientific Theme Background */
+        
+        .theme-bg {
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+        }
+        /* Glassmorphism for Cards */
+        
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 50vh;
+            background: linear-gradient(to bottom, #0f172a, #172554);
+            /* Deep space blue */
+            border-radius: 0 0 2rem 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.5);
+        }
+        
+        @media (min-width: 768px) {
+            #canvas-container {
+                height: 60vh;
+                border-radius: 1rem;
+            }
+        }
+        
+        .btn-control {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-control:active {
+            transform: scale(0.95);
+        }
+        /* Toggle Button Fade Animation */
+        
+        .ui-fade {
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        
+        .ui-hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+        }
+        /* Custom Scrollbar */
+        
+         ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+         ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        
+         ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="theme-bg text-slate-200 min-h-screen">
+
+    <!-- Navbar -->
+    <nav class="glass-panel sticky top-0 z-50 border-b border-slate-700/50">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 p-2 rounded-lg shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-flask text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg md:text-xl tracking-wide text-white">MHR Chemistry <span class="text-blue-400">Academy</span></h1>
+                    <p class="text-[10px] text-slate-400 uppercase tracking-widest hidden md:block">HSC Chemistry Visualization Tool</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button id="rotation-btn" onclick="toggleRotation()" class="btn-control bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-xs md:text-sm flex items-center gap-2 border border-slate-600">
+                    <i id="rot-icon" class="fa-solid fa-pause"></i> <span id="rot-text" class="hidden sm:inline">Pause</span>
+                </button>
+                <button onclick="resetCamera()" class="btn-control bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 px-3 py-1.5 rounded-lg text-xs md:text-sm border border-blue-500/30">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left Column: 3D Visualization -->
+        <div class="lg:col-span-2 space-y-4">
+            <!-- 3D Canvas Card -->
+            <div class="glass-panel rounded-2xl overflow-hidden relative group shadow-2xl shadow-blue-900/20">
+                <!-- Canvas -->
+                <div id="canvas-container"></div>
+
+                <!-- View Toggle Button (Eye Icon) -->
+                <button onclick="toggleUI()" class="absolute top-4 right-4 z-30 bg-black/40 hover:bg-black/60 backdrop-blur-md text-white p-2 rounded-full border border-white/10 transition-all active:scale-95 shadow-lg" title="Hide/Show Controls">
+                    <i id="eye-icon" class="fa-solid fa-eye text-lg w-6 h-6 flex items-center justify-center"></i>
+                </button>
+
+                <!-- Controls Overlay (Wrap all buttons here) -->
+                <div id="main-controls" class="ui-fade absolute bottom-0 left-0 right-0 p-4 pb-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col items-center pointer-events-none gap-3">
+
+                    <!-- Mode Status -->
+                    <div id="status-badge" class="bg-black/60 backdrop-blur-md px-4 py-1 rounded-full text-xs font-mono text-cyan-400 border border-cyan-500/30 shadow-lg">
+                        Mode: Resonance Hybrid
+                    </div>
+
+                    <!-- Button Group -->
+                    <div class="flex flex-wrap justify-center gap-2 md:gap-4 pointer-events-auto w-full max-w-lg">
+                        <!-- Structure A -->
+                        <button onclick="setMode('kekule1')" class="btn-control bg-slate-800/90 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl shadow-lg text-xs font-semibold border border-slate-600 flex items-center gap-2 flex-1 justify-center min-w-[100px]">
+                            <div class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div> Struct A
+                        </button>
+
+                        <!-- Play Animation (Primary Action) -->
+                        <button onclick="toggleResonanceAnimation()" id="anim-btn" class="btn-control bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl shadow-lg shadow-indigo-500/30 text-xs md:text-sm font-bold border border-indigo-400 flex items-center gap-2 animate-pulse-slow flex-auto justify-center min-w-[140px] order-last md:order-none w-full md:w-auto">
+                            <i class="fa-solid fa-play-circle text-lg"></i> <span>Play Resonance</span>
+                        </button>
+
+                        <!-- Structure B -->
+                        <button onclick="setMode('kekule2')" class="btn-control bg-slate-800/90 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl shadow-lg text-xs font-semibold border border-slate-600 flex items-center gap-2 flex-1 justify-center min-w-[100px]">
+                            <div class="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></div> Struct B
+                        </button>
+                    </div>
+
+                    <!-- Hybrid Toggle (Separate) -->
+                    <button onclick="setMode('hybrid')" class="pointer-events-auto mt-1 text-[10px] md:text-xs text-slate-400 hover:text-white underline decoration-dotted underline-offset-4 bg-black/20 px-3 py-1 rounded-full backdrop-blur-sm">
+                        Show True Hybrid Cloud
+                    </button>
+                </div>
+
+                <!-- Loader -->
+                <div id="loader" class="absolute inset-0 bg-slate-900 flex items-center justify-center z-20 transition-opacity duration-500">
+                    <div class="text-center">
+                        <i class="fa-solid fa-atom fa-spin text-5xl text-blue-500 mb-4 shadow-blue-500/50 drop-shadow-lg"></i>
+                        <p class="text-blue-200 font-medium tracking-widest text-sm animate-pulse">SYNTHESIZING BENZENE...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compound Info Bar -->
+            <div class="glass-panel p-4 rounded-xl border-l-4 border-cyan-500 flex items-center justify-between">
+                <div>
+                    <h3 class="font-bold text-slate-200 text-lg">Benzene (C₆H₆)</h3>
+                    <p class="text-xs text-slate-400">Organic Chemistry • Aromatic Hydrocarbons</p>
+                </div>
+                <div class="flex gap-4 text-center">
+                    <div>
+                        <div class="text-xs text-slate-500 uppercase">Carbon</div>
+                        <div class="font-bold text-slate-200">6</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-500 uppercase">Hydrogen</div>
+                        <div class="font-bold text-slate-200">6</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-500 uppercase">Pi e⁻</div>
+                        <div class="font-bold text-cyan-400">6</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Learning Resources -->
+        <div class="space-y-4">
+
+            <!-- What is Resonance? -->
+            <div class="glass-panel p-5 rounded-2xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-blue-500 blur-3xl opacity-20 rounded-full"></div>
+
+                <div class="flex items-center mb-4">
+                    <div class="bg-slate-700/50 p-2 rounded-lg text-blue-400 mr-3 border border-slate-600">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <h2 class="text-lg font-bold text-white">Resonance Concept</h2>
+                </div>
+
+                <p class="text-sm text-slate-300 leading-relaxed mb-4">
+                    Benzene doesn't actually flip between Structure A and B. Instead, the <span class="text-cyan-400 font-semibold">pi-electrons</span> are delocalized (spread out) over the entire ring.
+                </p>
+                <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700 text-xs text-slate-400 italic">
+                    <i class="fa-solid fa-info-circle mr-1 text-blue-400"></i> Tip: Use the "Play Resonance" button to visualize how electrons move theoretically!
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="glass-panel p-5 rounded-2xl">
+                <h3 class="font-bold text-slate-200 mb-4 border-b border-slate-700 pb-2">Molecular Data</h3>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between items-center group">
+                        <span class="text-slate-400 group-hover:text-slate-200 transition">Hybridization</span>
+                        <span class="font-mono text-cyan-300 bg-cyan-900/30 px-2 py-0.5 rounded">sp²</span>
+                    </div>
+                    <div class="flex justify-between items-center group">
+                        <span class="text-slate-400 group-hover:text-slate-200 transition">Bond Angle</span>
+                        <span class="font-mono text-cyan-300 bg-cyan-900/30 px-2 py-0.5 rounded">120°</span>
+                    </div>
+                    <div class="flex justify-between items-center group">
+                        <span class="text-slate-400 group-hover:text-slate-200 transition">Bond Length</span>
+                        <span class="font-mono text-cyan-300 bg-cyan-900/30 px-2 py-0.5 rounded">1.39 Å</span>
+                    </div>
+                    <div class="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-700/50">
+                        *Intermediate between single (1.54Å) and double (1.33Å) bonds.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="glass-panel p-4 rounded-xl">
+                <h4 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">Visualization Key</h4>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="flex items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                        <span class="w-3 h-3 rounded-full bg-slate-500 mr-2 shadow-[0_0_5px_gray]"></span>
+                        <span class="text-xs text-slate-300">Carbon</span>
+                    </div>
+                    <div class="flex items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                        <span class="w-3 h-3 rounded-full bg-white mr-2 shadow-[0_0_5px_white]"></span>
+                        <span class="text-xs text-slate-300">Hydrogen</span>
+                    </div>
+                    <div class="flex items-center bg-slate-800/50 p-2 rounded border border-slate-700/50 col-span-2">
+                        <span class="w-3 h-3 rounded-full bg-purple-500 mr-2 shadow-[0_0_8px_purple]"></span>
+                        <span class="text-xs text-slate-300">Delocalized Pi-Cloud</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-8 border-t border-slate-800/50 bg-slate-900/50 py-8 text-center backdrop-blur-sm">
+        <p class="text-sm text-slate-500">© 2025 <span class="font-bold text-blue-500">MHR Chemistry Academy</span></p>
+        <p class="text-xs text-slate-600 mt-1">Empowering HSC Students with Visual Learning</p>
+    </footer>
+
+    <!-- Three.js Logic -->
+    <script>
+        // --- Variables ---
+        let scene, camera, renderer, controls;
+        let benzeneGroup;
+        let bonds = [];
+        let piCloudTop, piCloudBottom;
+        let particles = [];
+
+        // State State
+        let currentMode = 'hybrid';
+        let isAutoResonance = false;
+        let isRotating = true;
+        let resonanceTime = 0;
+        let isUIVisible = true;
+
+        // Configuration
+        const config = {
+            bondLength: 1.4,
+            atomSizeC: 0.35,
+            atomSizeH: 0.22,
+            bondRadius: 0.06,
+            doubleBondOffset: 0.12,
+            hydrogenDist: 2.4
+        };
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene
+            scene = new THREE.Scene();
+            // Transparent background to let CSS gradient show through
+            scene.background = null;
+            scene.fog = new THREE.FogExp2(0x0f172a, 0.03);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+            camera.position.set(0, 6, 6);
+            camera.lookAt(0, 0, 0);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                alpha: true
+            });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            container.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxDistance = 20;
+            controls.minDistance = 3;
+            controls.enablePan = false;
+
+            // Lighting (Dramatic Lab Style)
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+            scene.add(ambientLight);
+
+            // Main white light
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1);
+            mainLight.position.set(5, 10, 7);
+            mainLight.castShadow = true;
+            scene.add(mainLight);
+
+            // Blue rim light (Scientific look)
+            const blueLight = new THREE.PointLight(0x3b82f6, 2, 20);
+            blueLight.position.set(-5, 2, -5);
+            scene.add(blueLight);
+
+            // Purple under glow
+            const purpleLight = new THREE.PointLight(0xa855f7, 1, 20);
+            purpleLight.position.set(0, -5, 0);
+            scene.add(purpleLight);
+
+            // Build Molecule
+            buildBenzene();
+            addFloatingParticles();
+
+            // Listeners
+            window.addEventListener('resize', onWindowResize);
+
+            // Hide Loader
+            setTimeout(() => {
+                const loader = document.getElementById('loader');
+                loader.style.opacity = '0';
+                setTimeout(() => loader.remove(), 500);
+            }, 800);
+
+            animate();
+            updateBonds();
+        }
+
+        function buildBenzene() {
+            benzeneGroup = new THREE.Group();
+            scene.add(benzeneGroup);
+
+            // Materials - Glossy & Scientific
+            const matCarbon = new THREE.MeshPhysicalMaterial({
+                color: 0x334155, // Slate 700
+                roughness: 0.3,
+                metalness: 0.6,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.1
+            });
+
+            const matHydrogen = new THREE.MeshPhysicalMaterial({
+                color: 0xf8fafc,
+                roughness: 0.2,
+                metalness: 0.1,
+                emissive: 0xffffff,
+                emissiveIntensity: 0.1
+            });
+
+            const matBond = new THREE.MeshStandardMaterial({
+                color: 0x94a3b8, // Slate 400
+                roughness: 0.4,
+                metalness: 0.5
+            });
+
+            // Geometries
+            const geoSphere = new THREE.SphereGeometry(1, 32, 32);
+            const geoCylinder = new THREE.CylinderGeometry(1, 1, 1, 16);
+
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2;
+
+                // C Atom
+                const x = Math.cos(angle) * config.bondLength;
+                const z = Math.sin(angle) * config.bondLength;
+
+                const cAtom = new THREE.Mesh(geoSphere, matCarbon);
+                cAtom.scale.set(config.atomSizeC, config.atomSizeC, config.atomSizeC);
+                cAtom.position.set(x, 0, z);
+                cAtom.castShadow = true;
+                benzeneGroup.add(cAtom);
+
+                // H Atom
+                const hx = Math.cos(angle) * config.hydrogenDist;
+                const hz = Math.sin(angle) * config.hydrogenDist;
+
+                const hAtom = new THREE.Mesh(geoSphere, matHydrogen);
+                hAtom.scale.set(config.atomSizeH, config.atomSizeH, config.atomSizeH);
+                hAtom.position.set(hx, 0, hz);
+                hAtom.castShadow = true;
+                benzeneGroup.add(hAtom);
+
+                // C-H Bond
+                const bondLenCH = config.hydrogenDist - config.bondLength;
+                const chBond = new THREE.Mesh(geoCylinder, matBond);
+                chBond.position.set((x + hx) / 2, 0, (z + hz) / 2);
+                chBond.scale.set(config.bondRadius, bondLenCH, config.bondRadius);
+                chBond.lookAt(x, 0, z);
+                chBond.rotateX(Math.PI / 2);
+                benzeneGroup.add(chBond);
+
+                // C-C Connections
+                const nextAngle = ((i + 1) / 6) * Math.PI * 2;
+                const nx = Math.cos(nextAngle) * config.bondLength;
+                const nz = Math.sin(nextAngle) * config.bondLength;
+
+                const midX = (x + nx) / 2;
+                const midZ = (z + nz) / 2;
+                const dist = Math.sqrt((nx - x) ** 2 + (nz - z) ** 2);
+
+                const bondGroup = new THREE.Group();
+                bondGroup.position.set(midX, 0, midZ);
+                bondGroup.lookAt(nx, 0, nz);
+                benzeneGroup.add(bondGroup);
+
+                // Sigma Bond
+                const sigma = new THREE.Mesh(geoCylinder, matBond);
+                sigma.scale.set(config.bondRadius, dist, config.bondRadius);
+                sigma.rotateX(Math.PI / 2);
+                bondGroup.add(sigma);
+
+                // Pi Bond (Double)
+                const piBondMat = new THREE.MeshStandardMaterial({
+                    color: 0x38bdf8, // Light Blue Neon
+                    emissive: 0x0ea5e9,
+                    emissiveIntensity: 0.5,
+                    transparent: true,
+                    opacity: 1
+                });
+
+                const piBond = new THREE.Mesh(geoCylinder, piBondMat);
+                piBond.scale.set(config.bondRadius * 0.6, dist * 0.8, config.bondRadius * 0.6);
+                piBond.rotateX(Math.PI / 2);
+                piBond.position.set(config.doubleBondOffset * 2, 0, 0);
+                piBond.visible = false;
+                bondGroup.add(piBond);
+
+                bonds.push({
+                    index: i,
+                    piMesh: piBond,
+                    mat: piBondMat
+                });
+            }
+
+            // Resonance Hybrid Clouds (Glowing Donuts)
+            const torusGeo = new THREE.TorusGeometry(config.bondLength, 0.25, 16, 64);
+            const cloudMat = new THREE.MeshPhysicalMaterial({
+                color: 0xa855f7, // Purple
+                emissive: 0x7e22ce,
+                emissiveIntensity: 0.5,
+                transparent: true,
+                opacity: 0.0,
+                transmission: 0.4, // Glass like
+                thickness: 1,
+                roughness: 0
+            });
+
+            piCloudTop = new THREE.Mesh(torusGeo, cloudMat);
+            piCloudTop.rotation.x = Math.PI / 2;
+            piCloudTop.position.y = 0.4;
+
+            piCloudBottom = new THREE.Mesh(torusGeo, cloudMat.clone());
+            piCloudBottom.rotation.x = Math.PI / 2;
+            piCloudBottom.position.y = -0.4;
+
+            benzeneGroup.add(piCloudTop);
+            benzeneGroup.add(piCloudBottom);
+        }
+
+        // Add floating dust particles for atmosphere
+        function addFloatingParticles() {
+            const geometry = new THREE.BufferGeometry();
+            const count = 50;
+            const positions = new Float32Array(count * 3);
+
+            for (let i = 0; i < count * 3; i++) {
+                positions[i] = (Math.random() - 0.5) * 15;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({
+                color: 0x38bdf8,
+                size: 0.05,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            const points = new THREE.Points(geometry, material);
+            scene.add(points);
+            particles = points;
+        }
+
+        function updateBonds() {
+            const badge = document.getElementById('status-badge');
+
+            if (isAutoResonance) {
+                badge.innerText = "Mode: Active Resonance Cycle";
+                badge.className = "bg-indigo-900/60 backdrop-blur-md px-4 py-1 rounded-full text-xs font-mono text-indigo-300 border border-indigo-500/50 animate-pulse shadow-lg";
+                return; // Animation loop handles opacity
+            }
+
+            // Static Modes
+            let targetOpacity = 0;
+
+            if (currentMode === 'hybrid') {
+                badge.innerText = "Mode: Resonance Hybrid";
+                badge.className = "bg-purple-900/60 backdrop-blur-md px-4 py-1 rounded-full text-xs font-mono text-purple-300 border border-purple-500/50 shadow-lg";
+                targetOpacity = 0.7; // Cloud visibility
+
+                bonds.forEach(b => {
+                    b.piMesh.visible = false;
+                    b.mat.opacity = 0;
+                });
+            } else {
+                targetOpacity = 0; // Hide Cloud
+                const isKekule1 = currentMode === 'kekule1';
+                badge.innerText = isKekule1 ? "Mode: Kekulé Structure A" : "Mode: Kekulé Structure B";
+                badge.className = "bg-blue-900/60 backdrop-blur-md px-4 py-1 rounded-full text-xs font-mono text-blue-300 border border-blue-500/50 shadow-lg";
+
+                bonds.forEach(b => {
+                    // Logic: Kekule1 uses bonds 0,2,4. Kekule2 uses 1,3,5
+                    const isActive = isKekule1 ? (b.index % 2 === 0) : (b.index % 2 !== 0);
+                    b.piMesh.visible = true;
+                    // We will tween this in animation loop, but set target for now
+                    b.mat.targetOpacity = isActive ? 1 : 0.1;
+                });
+            }
+
+            piCloudTop.material.targetOpacity = targetOpacity;
+        }
+
+        function setMode(mode) {
+            isAutoResonance = false;
+            currentMode = mode;
+
+            // Reset button states
+            document.getElementById('anim-btn').innerHTML = '<i class="fa-solid fa-play-circle text-lg"></i> <span>Play Resonance</span>';
+            document.getElementById('anim-btn').classList.remove('bg-red-600', 'border-red-400', 'animate-pulse');
+            document.getElementById('anim-btn').classList.add('bg-indigo-600', 'border-indigo-400');
+
+            updateBonds();
+        }
+
+        function toggleResonanceAnimation() {
+            isAutoResonance = !isAutoResonance;
+            const btn = document.getElementById('anim-btn');
+
+            if (isAutoResonance) {
+                currentMode = 'auto';
+                resonanceTime = 0;
+                btn.innerHTML = '<i class="fa-solid fa-stop-circle text-lg"></i> <span>Stop Cycle</span>';
+                btn.classList.remove('bg-indigo-600', 'border-indigo-400', 'animate-pulse-slow');
+                btn.classList.add('bg-red-600', 'border-red-400', 'animate-pulse');
+            } else {
+                setMode('hybrid'); // Return to safe state
+            }
+            updateBonds();
+        }
+
+        function toggleRotation() {
+            isRotating = !isRotating;
+            const btn = document.getElementById('rotation-btn');
+            const icon = document.getElementById('rot-icon');
+            const text = document.getElementById('rot-text');
+
+            if (isRotating) {
+                icon.className = "fa-solid fa-pause";
+                text.innerText = "Pause";
+                btn.classList.add('bg-slate-700');
+                btn.classList.remove('bg-green-700');
+            } else {
+                icon.className = "fa-solid fa-play";
+                text.innerText = "Play";
+                btn.classList.remove('bg-slate-700');
+                btn.classList.add('bg-green-700');
+            }
+        }
+
+        // --- NEW: UI Toggle Logic ---
+        function toggleUI() {
+            isUIVisible = !isUIVisible;
+            const ui = document.getElementById('main-controls');
+            const icon = document.getElementById('eye-icon');
+
+            if (isUIVisible) {
+                ui.classList.remove('ui-hidden');
+                icon.className = "fa-solid fa-eye text-lg w-6 h-6 flex items-center justify-center";
+            } else {
+                ui.classList.add('ui-hidden');
+                icon.className = "fa-solid fa-eye-slash text-lg w-6 h-6 flex items-center justify-center";
+            }
+        }
+
+        function resetCamera() {
+            camera.position.set(0, 6, 6);
+            camera.lookAt(0, 0, 0);
+            controls.reset();
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            // 1. Rotation Logic
+            if (isRotating && benzeneGroup) {
+                benzeneGroup.rotation.y += 0.003;
+            }
+
+            // 2. Visual Tweens
+            if (isAutoResonance) {
+                // Cycle oscillation
+                resonanceTime += 0.03;
+
+                // Sine wave oscillates between -1 and 1
+                const phase = Math.sin(resonanceTime);
+
+                // Opacity logic: 
+                // Group A (0,2,4) gets visible when phase > 0
+                // Group B (1,3,5) gets visible when phase < 0
+                // Hybrid gets visible when phase is near 0 (transition)
+
+                bonds.forEach(b => {
+                    b.piMesh.visible = true;
+                    if (b.index % 2 === 0) {
+                        // Group A
+                        b.mat.opacity = Math.max(0, phase); // Only positive part
+                    } else {
+                        // Group B
+                        b.mat.opacity = Math.max(0, -phase); // Only negative part
+                    }
+                });
+
+                // Hybrid pulse during transition
+                const transitionVal = 1 - Math.abs(phase); // Peaks when phase is 0
+                piCloudTop.material.opacity = transitionVal * 0.3; // Slight flash
+                piCloudBottom.material.opacity = transitionVal * 0.3;
+
+            } else {
+                // Smooth transition for static modes
+                if (currentMode === 'hybrid') {
+                    // Pulse the hybrid cloud slightly for "alive" feel
+                    const pulse = 0.6 + Math.sin(Date.now() * 0.002) * 0.1;
+                    piCloudTop.material.opacity += (pulse - piCloudTop.material.opacity) * 0.05;
+                    piCloudBottom.material.opacity = piCloudTop.material.opacity;
+                } else {
+                    // Fade clouds out
+                    piCloudTop.material.opacity += (0 - piCloudTop.material.opacity) * 0.1;
+                    piCloudBottom.material.opacity = piCloudTop.material.opacity;
+
+                    // Fade bonds
+                    bonds.forEach(b => {
+                        // targetOpacity was set in updateBonds
+                        let target = (currentMode === 'kekule1' && b.index % 2 === 0) || (currentMode === 'kekule2' && b.index % 2 !== 0) ? 1 : 0;
+                        b.mat.opacity += (target - b.mat.opacity) * 0.1;
+                        b.piMesh.visible = b.mat.opacity > 0.01;
+                    });
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
